@@ -47,6 +47,42 @@ function capitalize(value) {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
 
+function extractAssignedExpression(text, labels) {
+  for (const label of labels) {
+    const pattern = new RegExp(`${label}\\s*(?:=|:)\\s*([^\\s,;]+)`, "i");
+    const match = text.match(pattern);
+    if (match) {
+      return match[1];
+    }
+  }
+  return null;
+}
+
+function evaluateFormulaExpression(expression, variables) {
+  if (!expression) {
+    return null;
+  }
+
+  const normalized = expression.replace(/\^/g, "**");
+  if (!/^[0-9+\-*/()._\sA-Za-z]+$/.test(normalized)) {
+    throw new Error(`Unsupported formula: ${expression}`);
+  }
+
+  const tokens = normalized.match(/[A-Za-z_][A-Za-z0-9_]*/g) || [];
+  const allowed = new Set(Object.keys(variables));
+  for (const token of tokens) {
+    if (!allowed.has(token)) {
+      throw new Error(`Unsupported formula variable: ${token}`);
+    }
+  }
+
+  const argNames = Object.keys(variables);
+  const argValues = Object.values(variables);
+  const evaluator = new Function(...argNames, `return (${normalized});`);
+  const value = evaluator(...argValues);
+  return Number.isFinite(value) ? value : null;
+}
+
 function normalPdf(x) {
   return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
 }
@@ -143,6 +179,7 @@ function parseNaturalLanguageTrade(input) {
     /(?:BUY|SELL|LONG|SHORT)\s+(\d+(?:\.\d+)?)/i,
   ];
   let quantity = 1;
+  const quantityExpression = extractAssignedExpression(normalized, ["QTY", "QUANTITY", "N", "NOTIONAL"]);
   for (const pattern of quantityPatterns) {
     const match = normalized.match(pattern);
     if (match) {
@@ -159,6 +196,7 @@ function parseNaturalLanguageTrade(input) {
     /\b(\d+(?:\.\d+)?)\s+(?:CALL|PUT)\b/i,
   ];
   let strike = null;
+  const strikeExpression = extractAssignedExpression(normalized, ["K", "STRIKE"]);
   for (const pattern of strikePatterns) {
     const match = normalized.match(pattern);
     if (match) {
@@ -184,13 +222,15 @@ function parseNaturalLanguageTrade(input) {
     }
   }
 
-  if (!symbol || !optionType || !strike || !expiry) {
+  const hasStrike = Number.isFinite(strike) || Boolean(strikeExpression);
+  if (!symbol || !optionType || !hasStrike || !expiry) {
     const extracted = {
       ticker: symbol,
       optionType,
       side: side > 0 ? "long" : "short",
       quantity,
       strike,
+      strikeExpression,
       expiry: expiry ? expiry.toISOString().slice(0, 10) : null,
     };
     const missing = [];
@@ -200,7 +240,7 @@ function parseNaturalLanguageTrade(input) {
     if (!optionType) {
       missing.push("call/put");
     }
-    if (!strike) {
+    if (!hasStrike) {
       missing.push("strike");
     }
     if (!expiry) {
@@ -222,6 +262,8 @@ function parseNaturalLanguageTrade(input) {
     side,
     quantity,
     strike,
+    quantityExpression,
+    strikeExpression,
     expiry: expiry.toISOString().slice(0, 10),
     rawText: text,
   };
@@ -468,6 +510,35 @@ async function evaluateTrade() {
 
     if (!Number.isFinite(market.spot) || market.spot <= 0) {
       throw new Error("Spot is missing. Enter it manually or provide an API key.");
+    }
+
+    if ((!Number.isFinite(trade.strike) || trade.strike <= 0) && trade.strikeExpression) {
+      const evaluatedStrike = evaluateFormulaExpression(trade.strikeExpression, {
+        Spot: market.spot,
+        S: market.spot,
+        spot: market.spot,
+        s: market.spot,
+      });
+      if (!Number.isFinite(evaluatedStrike) || evaluatedStrike <= 0) {
+        throw new Error(`Could not evaluate strike formula: ${trade.strikeExpression}`);
+      }
+      trade.strike = evaluatedStrike;
+    }
+
+    if (trade.quantityExpression) {
+      const evaluatedQuantity = evaluateFormulaExpression(trade.quantityExpression, {
+        Spot: market.spot,
+        S: market.spot,
+        spot: market.spot,
+        s: market.spot,
+      });
+      if (Number.isFinite(evaluatedQuantity) && evaluatedQuantity > 0) {
+        trade.quantity = evaluatedQuantity;
+      }
+    }
+
+    if (!Number.isFinite(trade.strike) || trade.strike <= 0) {
+      throw new Error("Strike is missing. Enter K=<number> or a formula such as K=Spot*1.1.");
     }
 
     const histVol = realizedVolatility(closeSeries);
