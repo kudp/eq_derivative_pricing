@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -16,152 +16,34 @@
     <div class="page-shell">
       <header class="hero">
         <p class="eyebrow">Equity Derivatives</p>
-        <h1>自然言語で株式オプションを評価</h1>
+        <h1>Price Equity Options From Natural Language</h1>
         <p class="hero-copy">
-          取引条件を文章で入力すると、銘柄やストライク、満期、数量を抽出し、
-          `SABR` または `Heston` で時価評価します。APIキーがあれば最新株価と履歴データを使って、
-          できるだけマーケットに寄せた評価にします。
+          Enter an English trade ticket, including formula-style fields like
+          `K=220`, `T=2026-12-18`, or `qty=10`. The app extracts the key trade
+          terms and marks the position to market with `SABR` or `Heston`.
         </p>
       </header>
 
-      <main class="grid">
+      <main class="stack">
         <section class="panel input-panel">
           <div class="panel-heading">
-            <h2>取引入力</h2>
+            <h2>Trade Input</h2>
             <span>Natural Language Ticket</span>
           </div>
 
           <label class="field">
-            <span>取引内容</span>
+            <span>Trade Description</span>
             <textarea id="tradeInput" rows="6" spellcheck="false">
-AAPLの2026-12-18満期、権利行使価格220ドルのコールを10枚買い
+Buy qty=10 AAPL call K=220 T=2026-12-18
             </textarea>
           </label>
 
-          <div class="field-grid">
-            <label class="field">
-              <span>モデル</span>
-              <select id="modelSelect">
-                <option value="sabr">SABR</option>
-                <option value="heston">Heston</option>
-              </select>
-            </label>
-
-            <label class="field">
-              <span>評価通貨</span>
-              <select id="currencySelect">
-                <option value="USD">USD</option>
-                <option value="JPY">JPY</option>
-              </select>
-            </label>
-          </div>
-
-          <div class="panel-heading compact">
-            <h3>マーケットデータ</h3>
-            <span>Best Effort Live</span>
-          </div>
-
-          <label class="field">
-            <span>Alpha Vantage API Key</span>
-            <input id="apiKeyInput" type="password" placeholder="任意。未入力なら手入力値を優先" />
-          </label>
-
-          <div class="field-grid three">
-            <label class="field">
-              <span>現値 Spot</span>
-              <input id="spotInput" type="number" step="0.01" placeholder="例 212.35" />
-            </label>
-            <label class="field">
-              <span>金利 r</span>
-              <input id="rateInput" type="number" step="0.0001" value="0.0450" />
-            </label>
-            <label class="field">
-              <span>配当 q</span>
-              <input id="dividendInput" type="number" step="0.0001" value="0.0000" />
-            </label>
-          </div>
-
-          <div class="field-grid three">
-            <label class="field">
-              <span>ベース Vol</span>
-              <input id="volInput" type="number" step="0.0001" value="0.2500" />
-            </label>
-            <label class="field">
-              <span>ヒストリカル日数</span>
-              <input id="lookbackInput" type="number" step="1" value="90" />
-            </label>
-            <label class="field">
-              <span>契約乗数</span>
-              <input id="multiplierInput" type="number" step="1" value="100" />
-            </label>
-          </div>
-
-          <div class="field-grid three">
-            <label class="field">
-              <span>USDJPY</span>
-              <input id="usdJpyInput" type="number" step="0.01" value="150.00" />
-            </label>
-            <label class="field">
-              <span>MC Paths</span>
-              <input id="mcPathsInput" type="number" step="100" value="4000" />
-            </label>
-            <label class="field">
-              <span>MC Steps</span>
-              <input id="mcStepsInput" type="number" step="1" value="90" />
-            </label>
-          </div>
-
-          <div class="field-grid three">
-            <label class="field">
-              <span>SABR β</span>
-              <input id="sabrBetaInput" type="number" step="0.01" value="0.70" />
-            </label>
-            <label class="field">
-              <span>SABR ν</span>
-              <input id="sabrNuInput" type="number" step="0.01" value="0.50" />
-            </label>
-            <label class="field">
-              <span>SABR ρ</span>
-              <input id="sabrRhoInput" type="number" step="0.01" value="-0.25" />
-            </label>
-          </div>
-
-          <div class="field-grid four">
-            <label class="field">
-              <span>Heston v0</span>
-              <input id="hestonV0Input" type="number" step="0.0001" value="0.0625" />
-            </label>
-            <label class="field">
-              <span>Heston θ</span>
-              <input id="hestonThetaInput" type="number" step="0.0001" value="0.0625" />
-            </label>
-            <label class="field">
-              <span>Heston κ</span>
-              <input id="hestonKappaInput" type="number" step="0.01" value="1.80" />
-            </label>
-            <label class="field">
-              <span>Heston ξ</span>
-              <input id="hestonXiInput" type="number" step="0.01" value="0.55" />
-            </label>
-          </div>
-
-          <div class="field-grid">
-            <label class="field">
-              <span>Heston ρ</span>
-              <input id="hestonRhoInput" type="number" step="0.01" value="-0.65" />
-            </label>
-            <div class="field actions">
-              <span>評価</span>
-              <button id="priceButton" type="button">Parse & Price</button>
-            </div>
-          </div>
-
-          <p id="statusMessage" class="status idle">入力待ちです。</p>
+          <p id="statusMessage" class="status idle">Waiting for input.</p>
         </section>
 
         <section class="panel results-panel">
           <div class="panel-heading">
-            <h2>評価結果</h2>
+            <h2>Results</h2>
             <span>Marked To Market</span>
           </div>
 
@@ -169,22 +51,157 @@ AAPLの2026-12-18満期、権利行使価格220ドルのコールを10枚買い
 
           <div class="split">
             <div>
-              <h3>抽出された取引</h3>
+              <h3>Parsed Trade</h3>
               <pre id="parsedTrade" class="code-block"></pre>
             </div>
             <div>
-              <h3>使用データ</h3>
+              <h3>Market Snapshot</h3>
               <pre id="marketSnapshot" class="code-block"></pre>
             </div>
           </div>
 
           <div>
-            <h3>注意</h3>
+            <h3>Notes</h3>
             <ul class="notes">
-              <li>現状は欧州型バニラのコール/プットを対象にしています。</li>
-              <li>最新データ取得は Alpha Vantage の公式APIキー入力時に有効です。</li>
-              <li>オプション市場の実勢IV面は取得していないため、SABR/Hestonのパラメータは近似です。</li>
+              <li>The app currently targets European vanilla calls and puts.</li>
+              <li>Live data retrieval is enabled only when an Alpha Vantage API key is provided.</li>
+              <li>Since a live options IV surface is not fetched, SABR and Heston parameters are approximate.</li>
             </ul>
+          </div>
+        </section>
+
+        <section class="panel market-panel">
+          <div class="panel-heading">
+            <h2>Market Data</h2>
+            <span>Compact Inputs</span>
+          </div>
+
+          <div class="market-compact">
+            <label class="field">
+              <span>Alpha Vantage API Key</span>
+              <input id="apiKeyInput" type="password" placeholder="Optional. Leave blank to use manual inputs." />
+            </label>
+
+            <div class="compact-grid">
+              <label class="field">
+                <span>Spot</span>
+                <input id="spotInput" type="number" step="0.01" placeholder="212.35" />
+              </label>
+              <label class="field">
+                <span>Rate r</span>
+                <input id="rateInput" type="number" step="0.0001" value="0.0450" />
+              </label>
+              <label class="field">
+                <span>Dividend q</span>
+                <input id="dividendInput" type="number" step="0.0001" value="0.0000" />
+              </label>
+              <label class="field">
+                <span>Base Vol</span>
+                <input id="volInput" type="number" step="0.0001" value="0.2500" />
+              </label>
+              <label class="field">
+                <span>Lookback Days</span>
+                <input id="lookbackInput" type="number" step="1" value="90" />
+              </label>
+              <label class="field">
+                <span>Multiplier</span>
+                <input id="multiplierInput" type="number" step="1" value="100" />
+              </label>
+              <label class="field">
+                <span>USDJPY</span>
+                <input id="usdJpyInput" type="number" step="0.01" value="150.00" />
+              </label>
+              <label class="field">
+                <span>MC Paths</span>
+                <input id="mcPathsInput" type="number" step="100" value="4000" />
+              </label>
+              <label class="field">
+                <span>MC Steps</span>
+                <input id="mcStepsInput" type="number" step="1" value="90" />
+              </label>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel model-panel">
+          <div class="panel-heading">
+            <h2>Model Selection</h2>
+            <span>Pricing Setup</span>
+          </div>
+
+          <div class="field-grid">
+            <label class="field">
+              <span>Model</span>
+              <select id="modelSelect">
+                <option value="sabr">SABR</option>
+                <option value="heston">Heston</option>
+              </select>
+            </label>
+
+            <label class="field">
+              <span>Reporting Currency</span>
+              <select id="currencySelect">
+                <option value="USD">USD</option>
+                <option value="JPY">JPY</option>
+              </select>
+            </label>
+
+            <div class="field actions">
+              <span>Run Pricing</span>
+              <button id="priceButton" type="button">Parse & Price</button>
+            </div>
+          </div>
+
+          <div class="model-params">
+            <div class="params-group">
+              <div class="panel-heading compact">
+                <h3>SABR Parameters</h3>
+                <span>Vol Surface Approximation</span>
+              </div>
+              <div class="compact-grid">
+                <label class="field">
+                  <span>SABR β</span>
+                  <input id="sabrBetaInput" type="number" step="0.01" value="0.70" />
+                </label>
+                <label class="field">
+                  <span>SABR ν</span>
+                  <input id="sabrNuInput" type="number" step="0.01" value="0.50" />
+                </label>
+                <label class="field">
+                  <span>SABR ρ</span>
+                  <input id="sabrRhoInput" type="number" step="0.01" value="-0.25" />
+                </label>
+              </div>
+            </div>
+
+            <div class="params-group">
+              <div class="panel-heading compact">
+                <h3>Heston Parameters</h3>
+                <span>Stochastic Volatility</span>
+              </div>
+              <div class="compact-grid">
+                <label class="field">
+                  <span>Heston v0</span>
+                  <input id="hestonV0Input" type="number" step="0.0001" value="0.0625" />
+                </label>
+                <label class="field">
+                  <span>Heston θ</span>
+                  <input id="hestonThetaInput" type="number" step="0.0001" value="0.0625" />
+                </label>
+                <label class="field">
+                  <span>Heston κ</span>
+                  <input id="hestonKappaInput" type="number" step="0.01" value="1.80" />
+                </label>
+                <label class="field">
+                  <span>Heston ξ</span>
+                  <input id="hestonXiInput" type="number" step="0.01" value="0.55" />
+                </label>
+                <label class="field">
+                  <span>Heston ρ</span>
+                  <input id="hestonRhoInput" type="number" step="0.01" value="-0.65" />
+                </label>
+              </div>
+            </div>
           </div>
         </section>
       </main>

@@ -40,6 +40,13 @@ function safeNumber(value, fallback = 0) {
   return Number.isFinite(numeric) ? numeric : fallback;
 }
 
+function capitalize(value) {
+  if (!value) {
+    return value;
+  }
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 function normalPdf(x) {
   return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
 }
@@ -130,6 +137,7 @@ function parseNaturalLanguageTrade(input) {
   }
 
   const quantityPatterns = [
+    /(?:QTY|QUANTITY|NOTIONAL|N)\s*(?:=|:)?\s*(\d+(?:\.\d+)?)/i,
     /(\d+(?:\.\d+)?)\s*(?:枚|LOT|LOTS|CONTRACT|CONTRACTS)/i,
     /(\d+(?:\.\d+)?)\s*(?:買い|売り)/i,
     /(?:BUY|SELL|LONG|SHORT)\s+(\d+(?:\.\d+)?)/i,
@@ -144,6 +152,7 @@ function parseNaturalLanguageTrade(input) {
   }
 
   const strikePatterns = [
+    /(?:K|STRIKE)\s*(?:=|:)?\s*(\d+(?:\.\d+)?)/i,
     /(?:権利行使価格|ストライク|STRIKE)\s*(?:は|=|:)?\s*(\d+(?:\.\d+)?)/i,
     /(\d+(?:\.\d+)?)\s*(?:ドル|USD|円|JPY)\s*(?:の)?\s*(?:コール|プット|CALL|PUT)/i,
     /\b20\d{2}[-/]\d{1,2}[-/]\d{1,2}\b\s+(\d+(?:\.\d+)?)\s+(?:CALL|PUT)\b/i,
@@ -159,6 +168,11 @@ function parseNaturalLanguageTrade(input) {
   }
 
   let expiry = null;
+  const formulaDateMatch = normalized.match(/(?:T|EXP|EXPIRY|EXPIRATION|MATURITY)\s*(?:=|:)?\s*(20\d{2}[-/]\d{1,2}[-/]\d{1,2})/i);
+  if (formulaDateMatch) {
+    const [year, month, day] = formulaDateMatch[1].split(/[-/]/).map(Number);
+    expiry = new Date(Date.UTC(year, month - 1, day));
+  }
   const isoMatch = normalized.match(/\b(20\d{2})[-/](\d{1,2})[-/](\d{1,2})\b/);
   if (isoMatch) {
     expiry = new Date(Date.UTC(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3])));
@@ -171,9 +185,35 @@ function parseNaturalLanguageTrade(input) {
   }
 
   if (!symbol || !optionType || !strike || !expiry) {
-    throw new Error(
-      "銘柄、コール/プット、権利行使価格、満期を文から抽出できませんでした。例: AAPLの2026-12-18満期、権利行使価格220ドルのコールを10枚買い"
+    const extracted = {
+      ticker: symbol,
+      optionType,
+      side: side > 0 ? "long" : "short",
+      quantity,
+      strike,
+      expiry: expiry ? expiry.toISOString().slice(0, 10) : null,
+    };
+    const missing = [];
+    if (!symbol) {
+      missing.push("ticker");
+    }
+    if (!optionType) {
+      missing.push("call/put");
+    }
+    if (!strike) {
+      missing.push("strike");
+    }
+    if (!expiry) {
+      missing.push("expiry");
+    }
+
+    const error = new Error(
+      `Could not fully parse the trade. Missing: ${missing.join(", ")}. Example: Buy 10 AAPL 2026-12-18 220 call`
+      + ` or Buy qty=10 AAPL call K=220 T=2026-12-18`
     );
+    error.code = "PARSE_INCOMPLETE";
+    error.details = { extracted, missing };
+    throw error;
   }
 
   return {
@@ -209,7 +249,7 @@ async function fetchAlphaVantageData(symbol, apiKey, lookbackDays) {
   ]);
 
   if (!quoteRes.ok || !seriesRes.ok || !overviewRes.ok) {
-    throw new Error("マーケットデータの取得に失敗しました。APIキーやCORS制約を確認してください。");
+    throw new Error("Could not fetch market data. Please check the API key and any browser CORS restrictions.");
   }
 
   const [quoteJson, seriesJson, overviewJson] = await Promise.all([
@@ -219,13 +259,13 @@ async function fetchAlphaVantageData(symbol, apiKey, lookbackDays) {
   ]);
 
   if (quoteJson.Note || seriesJson.Note) {
-    throw new Error("Alpha Vantage の呼び出し上限に達した可能性があります。少し待って再試行してください。");
+    throw new Error("Alpha Vantage may have rate-limited the request. Please wait a bit and try again.");
   }
 
   const quote = quoteJson["Global Quote"];
   const series = seriesJson["Time Series (Daily)"];
   if (!quote || !series) {
-    throw new Error("株価または履歴データを取得できませんでした。ティッカー形式を確認してください。");
+    throw new Error("Could not retrieve quote or historical data. Please verify the ticker format.");
   }
 
   const spot = Number(quote["05. price"]);
@@ -389,7 +429,7 @@ function formatNumber(value, digits = 4) {
 
 async function evaluateTrade() {
   try {
-    setStatus("取引を解析しています…", "idle");
+    setStatus("Parsing trade description...", "idle");
     refs.metrics.innerHTML = "";
 
     const trade = parseNaturalLanguageTrade(refs.tradeInput.value);
@@ -413,7 +453,7 @@ async function evaluateTrade() {
 
     let closeSeries = [];
     if (apiKey) {
-      setStatus("最新株価と履歴データを取得しています…", "idle");
+      setStatus("Fetching latest spot and historical data...", "idle");
       const live = await fetchAlphaVantageData(trade.symbol, apiKey, lookbackDays);
       if (Number.isFinite(live.spot)) {
         market.spot = live.spot;
@@ -427,7 +467,7 @@ async function evaluateTrade() {
     }
 
     if (!Number.isFinite(market.spot) || market.spot <= 0) {
-      throw new Error("現値 Spot がありません。手入力するか、APIキーを設定してください。");
+      throw new Error("Spot is missing. Enter it manually or provide an API key.");
     }
 
     const histVol = realizedVolatility(closeSeries);
@@ -502,12 +542,12 @@ async function evaluateTrade() {
     const positionValue = unitPrice * signedQuantity * multiplier * fxRate;
 
     refs.metrics.innerHTML = [
-      createMetricCard("単価", formatMoney(unitPriceDisplay, currency), `${multiplier}株換算のプレミアム`),
-      createMetricCard("ポジションMTM", formatMoney(positionValue, currency), `${trade.quantity}枚 × ${trade.side > 0 ? "Long" : "Short"}`),
-      createMetricCard("モデルVol", formatNumber(modelVol * 100, 2) + "%", `${model.toUpperCase()} で使用したボラ`),
-      createMetricCard("Delta", formatNumber(greeks.delta * signedQuantity * multiplier, 2), "ポジションデルタ"),
-      createMetricCard("Gamma", formatNumber(greeks.gamma * signedQuantity * multiplier, 6), "ポジションガンマ"),
-      createMetricCard("Vega", formatNumber((greeks.vega / 100) * signedQuantity * multiplier, 4), "1 vol pointあたり"),
+      createMetricCard("Unit Premium", formatMoney(unitPriceDisplay, currency), `Premium for ${multiplier} underlying shares`),
+      createMetricCard("Position MTM", formatMoney(positionValue, currency), `${trade.quantity} contracts x ${trade.side > 0 ? "Long" : "Short"}`),
+      createMetricCard("Model Vol", formatNumber(modelVol * 100, 2) + "%", `Effective volatility used by ${model.toUpperCase()}`),
+      createMetricCard("Delta", formatNumber(greeks.delta * signedQuantity * multiplier, 2), "Position delta"),
+      createMetricCard("Gamma", formatNumber(greeks.gamma * signedQuantity * multiplier, 6), "Position gamma"),
+      createMetricCard("Vega", formatNumber((greeks.vega / 100) * signedQuantity * multiplier, 4), "Per 1 vol point"),
     ].join("");
 
     refs.parsedTrade.textContent = JSON.stringify(
@@ -539,9 +579,38 @@ async function evaluateTrade() {
       2
     );
 
-    setStatus("評価が完了しました。APIキー未入力時は手入力値を使い、入力時は最新株価と履歴から補正しています。", "success");
+    setStatus("Pricing completed. Manual inputs were used unless live data was available through the API key.", "success");
   } catch (error) {
-    setStatus(error.message || "評価中にエラーが発生しました。", "error");
+    if (error.code === "PARSE_INCOMPLETE" && error.details) {
+      refs.metrics.innerHTML = [
+        createMetricCard(
+          "Parse Status",
+          "Incomplete",
+          `Missing ${error.details.missing.length} required field(s)`
+        ),
+      ].join("");
+
+      refs.parsedTrade.textContent = JSON.stringify(
+        {
+          extracted: error.details.extracted,
+          missing: error.details.missing,
+          guidance: error.details.missing.map((field) => `Please add ${field} to the trade description.`),
+        },
+        null,
+        2
+      );
+
+      refs.marketSnapshot.textContent = JSON.stringify(
+        {
+          parseExample: "Buy 10 AAPL 2026-12-18 220 call",
+          supportedFields: ["ticker", "call/put", "strike", "expiry", "quantity", "side"],
+          note: "Pricing starts only after ticker, call/put, strike, and expiry are all available.",
+        },
+        null,
+        2
+      );
+    }
+    setStatus(error.message || "An error occurred while pricing the trade.", "error");
   }
 }
 
