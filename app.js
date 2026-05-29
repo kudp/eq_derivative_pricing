@@ -1,689 +1,483 @@
-const CONTRACT_SIZE_DEFAULT = 100;
-const DAY_COUNT = 365.0;
+const canvas = document.querySelector("#gameCanvas");
+const ctx = canvas.getContext("2d");
 
-const refs = {
-  tradeInput: document.getElementById("tradeInput"),
-  modelSelect: document.getElementById("modelSelect"),
-  currencySelect: document.getElementById("currencySelect"),
-  apiKeyInput: document.getElementById("apiKeyInput"),
-  spotInput: document.getElementById("spotInput"),
-  rateInput: document.getElementById("rateInput"),
-  dividendInput: document.getElementById("dividendInput"),
-  volInput: document.getElementById("volInput"),
-  lookbackInput: document.getElementById("lookbackInput"),
-  multiplierInput: document.getElementById("multiplierInput"),
-  usdJpyInput: document.getElementById("usdJpyInput"),
-  mcPathsInput: document.getElementById("mcPathsInput"),
-  mcStepsInput: document.getElementById("mcStepsInput"),
-  sabrBetaInput: document.getElementById("sabrBetaInput"),
-  sabrNuInput: document.getElementById("sabrNuInput"),
-  sabrRhoInput: document.getElementById("sabrRhoInput"),
-  hestonV0Input: document.getElementById("hestonV0Input"),
-  hestonThetaInput: document.getElementById("hestonThetaInput"),
-  hestonKappaInput: document.getElementById("hestonKappaInput"),
-  hestonXiInput: document.getElementById("hestonXiInput"),
-  hestonRhoInput: document.getElementById("hestonRhoInput"),
-  priceButton: document.getElementById("priceButton"),
-  statusMessage: document.getElementById("statusMessage"),
-  parsedTrade: document.getElementById("parsedTrade"),
-  marketSnapshot: document.getElementById("marketSnapshot"),
-  metrics: document.getElementById("metrics"),
+const scoreEl = document.querySelector("#score");
+const levelEl = document.querySelector("#level");
+const livesEl = document.querySelector("#lives");
+const overlay = document.querySelector("#overlay");
+const overlayKicker = document.querySelector("#overlayKicker");
+const overlayTitle = document.querySelector("#overlayTitle");
+const overlayText = document.querySelector("#overlayText");
+const startButton = document.querySelector("#startButton");
+const pauseButton = document.querySelector("#pauseButton");
+const resetButton = document.querySelector("#resetButton");
+
+const WIDTH = canvas.width;
+const HEIGHT = canvas.height;
+const keys = new Set();
+
+const state = {
+  running: false,
+  paused: false,
+  gameOver: false,
+  score: 0,
+  level: 1,
+  lives: 3,
+  lastTime: 0,
+  stars: createStars(90),
+  player: createPlayer(),
+  bullets: [],
+  enemyBullets: [],
+  invaders: [],
+  fleetDirection: 1,
+  fleetStepDown: 20,
+  enemyFireTimer: 0,
+  messageTimer: 0,
 };
 
-function setStatus(message, type = "idle") {
-  refs.statusMessage.textContent = message;
-  refs.statusMessage.className = `status ${type}`;
+function createPlayer() {
+  return {
+    x: WIDTH / 2 - 24,
+    y: HEIGHT - 58,
+    width: 48,
+    height: 28,
+    speed: 360,
+    cooldown: 0,
+  };
 }
 
-function safeNumber(value, fallback = 0) {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) ? numeric : fallback;
+function createStars(count) {
+  return Array.from({ length: count }, () => ({
+    x: Math.random() * WIDTH,
+    y: Math.random() * HEIGHT,
+    size: Math.random() * 1.8 + 0.5,
+    speed: Math.random() * 24 + 10,
+  }));
 }
 
-function capitalize(value) {
-  if (!value) {
-    return value;
-  }
-  return value.charAt(0).toUpperCase() + value.slice(1);
-}
+function buildFleet() {
+  state.invaders = [];
+  const rows = Math.min(3 + Math.floor(state.level / 2), 6);
+  const columns = 9;
+  const paddingX = 74;
+  const startY = 72;
+  const gapX = 58;
+  const gapY = 42;
 
-function extractAssignedExpression(text, labels) {
-  for (const label of labels) {
-    const pattern = new RegExp(`${label}\\s*(?:=|:)\\s*([^\\s,;]+)`, "i");
-    const match = text.match(pattern);
-    if (match) {
-      return match[1];
-    }
-  }
-  return null;
-}
-
-function evaluateFormulaExpression(expression, variables) {
-  if (!expression) {
-    return null;
-  }
-
-  const normalized = expression.replace(/\^/g, "**");
-  if (!/^[0-9+\-*/()._\sA-Za-z]+$/.test(normalized)) {
-    throw new Error(`Unsupported formula: ${expression}`);
-  }
-
-  const tokens = normalized.match(/[A-Za-z_][A-Za-z0-9_]*/g) || [];
-  const allowed = new Set(Object.keys(variables));
-  for (const token of tokens) {
-    if (!allowed.has(token)) {
-      throw new Error(`Unsupported formula variable: ${token}`);
+  for (let row = 0; row < rows; row += 1) {
+    for (let col = 0; col < columns; col += 1) {
+      state.invaders.push({
+        x: paddingX + col * gapX,
+        y: startY + row * gapY,
+        width: 34,
+        height: 24,
+        wobble: Math.random() * Math.PI * 2,
+        points: (rows - row) * 10,
+      });
     }
   }
 
-  const argNames = Object.keys(variables);
-  const argValues = Object.values(variables);
-  const evaluator = new Function(...argNames, `return (${normalized});`);
-  const value = evaluator(...argValues);
-  return Number.isFinite(value) ? value : null;
+  state.fleetDirection = 1;
+  state.enemyFireTimer = Math.max(0.38, 1.2 - state.level * 0.08);
 }
 
-function normalPdf(x) {
-  return Math.exp(-0.5 * x * x) / Math.sqrt(2 * Math.PI);
+function resetGame() {
+  state.running = false;
+  state.paused = false;
+  state.gameOver = false;
+  state.score = 0;
+  state.level = 1;
+  state.lives = 3;
+  state.player = createPlayer();
+  state.bullets = [];
+  state.enemyBullets = [];
+  buildFleet();
+  updateHud();
+  showOverlay("Ready?", "侵略を止めよう", "スタートを押すか、スペースキーでゲーム開始。");
+  drawScene(0);
 }
 
-function erf(x) {
-  const sign = x >= 0 ? 1 : -1;
-  const absX = Math.abs(x);
-  const a1 = 0.254829592;
-  const a2 = -0.284496736;
-  const a3 = 1.421413741;
-  const a4 = -1.453152027;
-  const a5 = 1.061405429;
-  const p = 0.3275911;
-  const t = 1 / (1 + p * absX);
-  const y = 1 - (((((a5 * t + a4) * t + a3) * t + a2) * t + a1) * t * Math.exp(-absX * absX));
-  return sign * y;
-}
-
-function normalCdf(x) {
-  return 0.5 * (1 + erf(x / Math.sqrt(2)));
-}
-
-function blackScholes({ spot, strike, rate, dividend, vol, time, optionType }) {
-  if (time <= 0) {
-    const intrinsic =
-      optionType === "call" ? Math.max(spot - strike, 0) : Math.max(strike - spot, 0);
-    return {
-      price: intrinsic,
-      delta: optionType === "call" ? (spot > strike ? 1 : 0) : spot < strike ? -1 : 0,
-      gamma: 0,
-      vega: 0,
-      theta: 0,
-    };
+function startGame() {
+  if (state.gameOver) {
+    resetGame();
   }
 
-  const sigma = Math.max(vol, 1e-6);
-  const sqrtT = Math.sqrt(time);
-  const d1 =
-    (Math.log(spot / strike) + (rate - dividend + 0.5 * sigma * sigma) * time) /
-    (sigma * sqrtT);
-  const d2 = d1 - sigma * sqrtT;
-  const dfR = Math.exp(-rate * time);
-  const dfQ = Math.exp(-dividend * time);
+  state.running = true;
+  state.paused = false;
+  hideOverlay();
+  state.lastTime = performance.now();
+  requestAnimationFrame(loop);
+}
 
-  let price;
-  let delta;
-  if (optionType === "call") {
-    price = spot * dfQ * normalCdf(d1) - strike * dfR * normalCdf(d2);
-    delta = dfQ * normalCdf(d1);
+function togglePause() {
+  if (!state.running || state.gameOver) {
+    return;
+  }
+
+  state.paused = !state.paused;
+  if (state.paused) {
+    showOverlay("Paused", "一時停止中", "再開するには一時停止ボタン、または P キーを押してください。");
   } else {
-    price = strike * dfR * normalCdf(-d2) - spot * dfQ * normalCdf(-d1);
-    delta = dfQ * (normalCdf(d1) - 1);
+    hideOverlay();
+    state.lastTime = performance.now();
+    requestAnimationFrame(loop);
   }
-
-  const gamma = (dfQ * normalPdf(d1)) / (spot * sigma * sqrtT);
-  const vega = spot * dfQ * normalPdf(d1) * sqrtT;
-  const thetaCommon = -(spot * dfQ * normalPdf(d1) * sigma) / (2 * sqrtT);
-  const theta =
-    optionType === "call"
-      ? thetaCommon - rate * strike * dfR * normalCdf(d2) + dividend * spot * dfQ * normalCdf(d1)
-      : thetaCommon + rate * strike * dfR * normalCdf(-d2) - dividend * spot * dfQ * normalCdf(-d1);
-
-  return { price, delta, gamma, vega, theta };
 }
 
-function parseNaturalLanguageTrade(input) {
-  const text = input.trim();
-  const normalized = text
-    .replace(/[，、]/g, " ")
-    .replace(/[．。]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  const upperText = normalized.toUpperCase();
-  const symbolMatch = upperText.match(/\b[A-Z]{1,5}(?:\.[A-Z]{1,3})?\b/);
-  const symbol = symbolMatch ? symbolMatch[0] : null;
-
-  let optionType = null;
-  if (/コール|CALL/.test(upperText)) {
-    optionType = "call";
-  } else if (/プット|PUT/.test(upperText)) {
-    optionType = "put";
+function loop(time) {
+  if (!state.running || state.paused) {
+    return;
   }
 
-  let side = 1;
-  if (/売り|ショート|SELL|SHORT/.test(upperText)) {
-    side = -1;
+  const delta = Math.min((time - state.lastTime) / 1000, 0.033);
+  state.lastTime = time;
+  update(delta);
+  drawScene(time / 1000);
+  requestAnimationFrame(loop);
+}
+
+function update(delta) {
+  updateStars(delta);
+  updatePlayer(delta);
+  updateBullets(delta);
+  updateInvaders(delta);
+  updateEnemyFire(delta);
+  detectCollisions();
+  checkRoundState();
+}
+
+function updateStars(delta) {
+  for (const star of state.stars) {
+    star.y += star.speed * delta;
+    if (star.y > HEIGHT) {
+      star.y = -4;
+      star.x = Math.random() * WIDTH;
+    }
+  }
+}
+
+function updatePlayer(delta) {
+  const player = state.player;
+  const movingLeft = keys.has("ArrowLeft") || keys.has("KeyA");
+  const movingRight = keys.has("ArrowRight") || keys.has("KeyD");
+
+  if (movingLeft) {
+    player.x -= player.speed * delta;
+  }
+  if (movingRight) {
+    player.x += player.speed * delta;
   }
 
-  const quantityPatterns = [
-    /(?:QTY|QUANTITY|NOTIONAL|N)\s*(?:=|:)?\s*(\d+(?:\.\d+)?)/i,
-    /(\d+(?:\.\d+)?)\s*(?:枚|LOT|LOTS|CONTRACT|CONTRACTS)/i,
-    /(\d+(?:\.\d+)?)\s*(?:買い|売り)/i,
-    /(?:BUY|SELL|LONG|SHORT)\s+(\d+(?:\.\d+)?)/i,
-  ];
-  let quantity = 1;
-  const quantityExpression = extractAssignedExpression(normalized, ["QTY", "QUANTITY", "N", "NOTIONAL"]);
-  for (const pattern of quantityPatterns) {
-    const match = normalized.match(pattern);
-    if (match) {
-      quantity = Number(match[1]);
+  player.x = clamp(player.x, 16, WIDTH - player.width - 16);
+  player.cooldown = Math.max(0, player.cooldown - delta);
+
+  if (keys.has("Space")) {
+    shoot();
+  }
+}
+
+function shoot() {
+  const player = state.player;
+  if (!state.running || state.paused || player.cooldown > 0) {
+    return;
+  }
+
+  state.bullets.push({
+    x: player.x + player.width / 2 - 3,
+    y: player.y - 12,
+    width: 6,
+    height: 18,
+    speed: 520,
+  });
+  player.cooldown = 0.22;
+}
+
+function updateBullets(delta) {
+  for (const bullet of state.bullets) {
+    bullet.y -= bullet.speed * delta;
+  }
+  for (const bullet of state.enemyBullets) {
+    bullet.y += bullet.speed * delta;
+  }
+
+  state.bullets = state.bullets.filter((bullet) => bullet.y + bullet.height > 0);
+  state.enemyBullets = state.enemyBullets.filter((bullet) => bullet.y < HEIGHT + bullet.height);
+}
+
+function updateInvaders(delta) {
+  if (state.invaders.length === 0) {
+    return;
+  }
+
+  const speed = 34 + state.level * 9;
+  let hitEdge = false;
+
+  for (const invader of state.invaders) {
+    invader.x += speed * state.fleetDirection * delta;
+    invader.wobble += delta * 4;
+    if (invader.x < 18 || invader.x + invader.width > WIDTH - 18) {
+      hitEdge = true;
+    }
+  }
+
+  if (hitEdge) {
+    state.fleetDirection *= -1;
+    for (const invader of state.invaders) {
+      invader.y += state.fleetStepDown;
+      invader.x = clamp(invader.x, 18, WIDTH - invader.width - 18);
+    }
+  }
+}
+
+function updateEnemyFire(delta) {
+  state.enemyFireTimer -= delta;
+  if (state.enemyFireTimer > 0 || state.invaders.length === 0) {
+    return;
+  }
+
+  const shooter = state.invaders[Math.floor(Math.random() * state.invaders.length)];
+  state.enemyBullets.push({
+    x: shooter.x + shooter.width / 2 - 3,
+    y: shooter.y + shooter.height,
+    width: 6,
+    height: 16,
+    speed: 180 + state.level * 22,
+  });
+  state.enemyFireTimer = Math.max(0.28, 1.15 - state.level * 0.07) + Math.random() * 0.45;
+}
+
+function detectCollisions() {
+  for (const bullet of [...state.bullets]) {
+    const hit = state.invaders.find((invader) => overlaps(bullet, invader));
+    if (hit) {
+      state.bullets = state.bullets.filter((item) => item !== bullet);
+      state.invaders = state.invaders.filter((item) => item !== hit);
+      state.score += hit.points;
+      updateHud();
+    }
+  }
+
+  for (const bullet of [...state.enemyBullets]) {
+    if (overlaps(bullet, state.player)) {
+      state.enemyBullets = state.enemyBullets.filter((item) => item !== bullet);
+      loseLife();
       break;
     }
   }
 
-  const strikePatterns = [
-    /(?:K|STRIKE)\s*(?:=|:)?\s*(\d+(?:\.\d+)?)/i,
-    /(?:権利行使価格|ストライク|STRIKE)\s*(?:は|=|:)?\s*(\d+(?:\.\d+)?)/i,
-    /(\d+(?:\.\d+)?)\s*(?:ドル|USD|円|JPY)\s*(?:の)?\s*(?:コール|プット|CALL|PUT)/i,
-    /\b20\d{2}[-/]\d{1,2}[-/]\d{1,2}\b\s+(\d+(?:\.\d+)?)\s+(?:CALL|PUT)\b/i,
-    /\b(\d+(?:\.\d+)?)\s+(?:CALL|PUT)\b/i,
-  ];
-  let strike = null;
-  const strikeExpression = extractAssignedExpression(normalized, ["K", "STRIKE"]);
-  for (const pattern of strikePatterns) {
-    const match = normalized.match(pattern);
-    if (match) {
-      strike = Number(match[1]);
-      break;
-    }
+  const landed = state.invaders.some((invader) => invader.y + invader.height >= state.player.y - 4);
+  if (landed) {
+    loseLife(true);
   }
-
-  let expiry = null;
-  const formulaDateMatch = normalized.match(/(?:T|EXP|EXPIRY|EXPIRATION|MATURITY)\s*(?:=|:)?\s*(20\d{2}[-/]\d{1,2}[-/]\d{1,2})/i);
-  if (formulaDateMatch) {
-    const [year, month, day] = formulaDateMatch[1].split(/[-/]/).map(Number);
-    expiry = new Date(Date.UTC(year, month - 1, day));
-  }
-  const isoMatch = normalized.match(/\b(20\d{2})[-/](\d{1,2})[-/](\d{1,2})\b/);
-  if (isoMatch) {
-    expiry = new Date(Date.UTC(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3])));
-  }
-  if (!expiry) {
-    const jpMatch = normalized.match(/(20\d{2})年(\d{1,2})月(\d{1,2})日/);
-    if (jpMatch) {
-      expiry = new Date(Date.UTC(Number(jpMatch[1]), Number(jpMatch[2]) - 1, Number(jpMatch[3])));
-    }
-  }
-
-  const hasStrike = Number.isFinite(strike) || Boolean(strikeExpression);
-  if (!symbol || !optionType || !hasStrike || !expiry) {
-    const extracted = {
-      ticker: symbol,
-      optionType,
-      side: side > 0 ? "long" : "short",
-      quantity,
-      strike,
-      strikeExpression,
-      expiry: expiry ? expiry.toISOString().slice(0, 10) : null,
-    };
-    const missing = [];
-    if (!symbol) {
-      missing.push("ticker");
-    }
-    if (!optionType) {
-      missing.push("call/put");
-    }
-    if (!hasStrike) {
-      missing.push("strike");
-    }
-    if (!expiry) {
-      missing.push("expiry");
-    }
-
-    const error = new Error(
-      `Could not fully parse the trade. Missing: ${missing.join(", ")}. Example: Buy 10 AAPL 2026-12-18 220 call`
-      + ` or Buy qty=10 AAPL call K=220 T=2026-12-18`
-    );
-    error.code = "PARSE_INCOMPLETE";
-    error.details = { extracted, missing };
-    throw error;
-  }
-
-  return {
-    symbol,
-    optionType,
-    side,
-    quantity,
-    strike,
-    quantityExpression,
-    strikeExpression,
-    expiry: expiry.toISOString().slice(0, 10),
-    rawText: text,
-  };
 }
 
-function yearFraction(expiryIso) {
-  const now = new Date();
-  const expiry = new Date(`${expiryIso}T00:00:00Z`);
-  const diffMs = expiry.getTime() - now.getTime();
-  return Math.max(diffMs / (1000 * 60 * 60 * 24 * DAY_COUNT), 1 / DAY_COUNT);
-}
+function loseLife(resetFleet = false) {
+  state.lives -= 1;
+  state.enemyBullets = [];
+  state.bullets = [];
+  state.player = createPlayer();
+  updateHud();
 
-async function fetchAlphaVantageData(symbol, apiKey, lookbackDays) {
-  const quoteUrl =
-    `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${encodeURIComponent(symbol)}&datatype=json&apikey=${encodeURIComponent(apiKey)}`;
-  const seriesUrl =
-    `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${encodeURIComponent(symbol)}&outputsize=compact&datatype=json&apikey=${encodeURIComponent(apiKey)}`;
-  const overviewUrl =
-    `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${encodeURIComponent(symbol)}&apikey=${encodeURIComponent(apiKey)}`;
-
-  const [quoteRes, seriesRes, overviewRes] = await Promise.all([
-    fetch(quoteUrl),
-    fetch(seriesUrl),
-    fetch(overviewUrl),
-  ]);
-
-  if (!quoteRes.ok || !seriesRes.ok || !overviewRes.ok) {
-    throw new Error("Could not fetch market data. Please check the API key and any browser CORS restrictions.");
+  if (state.lives <= 0) {
+    endGame();
+    return;
   }
 
-  const [quoteJson, seriesJson, overviewJson] = await Promise.all([
-    quoteRes.json(),
-    seriesRes.json(),
-    overviewRes.json(),
-  ]);
-
-  if (quoteJson.Note || seriesJson.Note) {
-    throw new Error("Alpha Vantage may have rate-limited the request. Please wait a bit and try again.");
+  if (resetFleet) {
+    buildFleet();
   }
-
-  const quote = quoteJson["Global Quote"];
-  const series = seriesJson["Time Series (Daily)"];
-  if (!quote || !series) {
-    throw new Error("Could not retrieve quote or historical data. Please verify the ticker format.");
-  }
-
-  const spot = Number(quote["05. price"]);
-  const closeSeries = Object.entries(series)
-    .slice(0, Math.max(5, lookbackDays))
-    .map(([date, row]) => ({
-      date,
-      close: Number(row["4. close"]),
-    }))
-    .filter((row) => Number.isFinite(row.close))
-    .sort((a, b) => a.date.localeCompare(b.date));
-
-  const dividendYieldRaw = Number(overviewJson.DividendYield);
-  const dividendYield = Number.isFinite(dividendYieldRaw) ? dividendYieldRaw : null;
-
-  return {
-    spot,
-    closeSeries,
-    dividendYield,
-    latestTradingDay: quote["07. latest trading day"] || null,
-  };
 }
 
-function realizedVolatility(closeSeries) {
-  if (!Array.isArray(closeSeries) || closeSeries.length < 2) {
-    return null;
-  }
-  const logReturns = [];
-  for (let i = 1; i < closeSeries.length; i += 1) {
-    const prev = closeSeries[i - 1].close;
-    const current = closeSeries[i].close;
-    if (prev > 0 && current > 0) {
-      logReturns.push(Math.log(current / prev));
-    }
-  }
-  if (logReturns.length < 2) {
-    return null;
-  }
-  const mean = logReturns.reduce((acc, value) => acc + value, 0) / logReturns.length;
-  const variance =
-    logReturns.reduce((acc, value) => acc + (value - mean) ** 2, 0) / (logReturns.length - 1);
-  return Math.sqrt(variance * 252);
-}
-
-function sabrImpliedVol({ forward, strike, time, alpha, beta, rho, nu }) {
-  const f = Math.max(forward, 1e-8);
-  const k = Math.max(strike, 1e-8);
-  const oneMinusBeta = 1 - beta;
-
-  if (Math.abs(f - k) < 1e-10) {
-    const fkPow = Math.pow(f, oneMinusBeta);
-    const term1 = alpha / fkPow;
-    const correction =
-      ((oneMinusBeta ** 2 * alpha ** 2) / (24 * fkPow * fkPow) +
-        (rho * beta * nu * alpha) / (4 * fkPow) +
-        ((2 - 3 * rho ** 2) * nu ** 2) / 24) *
-      time;
-    return Math.max(term1 * (1 + correction), 1e-6);
+function checkRoundState() {
+  if (state.invaders.length > 0 || state.gameOver) {
+    return;
   }
 
-  const logFk = Math.log(f / k);
-  const fkBeta = Math.pow(f * k, oneMinusBeta / 2);
-  const z = (nu / alpha) * fkBeta * logFk;
-  const xz = Math.log((Math.sqrt(1 - 2 * rho * z + z * z) + z - rho) / (1 - rho));
-  const numerator = alpha * z;
-  const denominator =
-    fkBeta *
-    xz *
-    (1 +
-      ((oneMinusBeta ** 2) / 24) * logFk ** 2 +
-      ((oneMinusBeta ** 4) / 1920) * logFk ** 4);
-
-  const correction =
-    1 +
-    (((oneMinusBeta ** 2 * alpha ** 2) / (24 * fkBeta ** 2)) +
-      (rho * beta * nu * alpha) / (4 * fkBeta) +
-      ((2 - 3 * rho ** 2) * nu ** 2) / 24) *
-      time;
-
-  return Math.max((numerator / denominator) * correction, 1e-6);
+  state.level += 1;
+  state.score += 100 * state.level;
+  state.bullets = [];
+  state.enemyBullets = [];
+  buildFleet();
+  updateHud();
 }
 
-function simpsonIntegral(fn, lower, upper, intervals = 400) {
-  const n = intervals % 2 === 0 ? intervals : intervals + 1;
-  const h = (upper - lower) / n;
-  let sum = fn(lower) + fn(upper);
-  for (let i = 1; i < n; i += 1) {
-    const x = lower + i * h;
-    sum += fn(x) * (i % 2 === 0 ? 2 : 4);
+function endGame() {
+  state.running = false;
+  state.gameOver = true;
+  showOverlay("Game Over", "地球は守られた？", `最終スコア: ${state.score}。リセットまたはスタートで再挑戦できます。`);
+}
+
+function drawScene(time) {
+  ctx.clearRect(0, 0, WIDTH, HEIGHT);
+  drawBackground();
+  drawStars();
+  drawPlayer();
+  drawInvaders(time);
+  drawBullets();
+  drawGroundLine();
+}
+
+function drawBackground() {
+  const gradient = ctx.createLinearGradient(0, 0, 0, HEIGHT);
+  gradient.addColorStop(0, "#050916");
+  gradient.addColorStop(0.62, "#08132a");
+  gradient.addColorStop(1, "#10091f");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+}
+
+function drawStars() {
+  for (const star of state.stars) {
+    ctx.fillStyle = `rgba(255, 255, 255, ${0.35 + star.size / 3})`;
+    ctx.fillRect(star.x, star.y, star.size, star.size);
   }
-  return (h / 3) * sum;
 }
 
-function sampleStandardNormal() {
-  let u1 = 0;
-  let u2 = 0;
-  while (u1 <= Number.EPSILON) {
-    u1 = Math.random();
-    u2 = Math.random();
+function drawPlayer() {
+  const { x, y, width, height } = state.player;
+  ctx.save();
+  ctx.shadowBlur = 18;
+  ctx.shadowColor = "#5df2ff";
+  ctx.fillStyle = "#5df2ff";
+  ctx.beginPath();
+  ctx.moveTo(x + width / 2, y);
+  ctx.lineTo(x + width, y + height);
+  ctx.lineTo(x, y + height);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#8dff6a";
+  ctx.fillRect(x + width / 2 - 5, y - 5, 10, 10);
+  ctx.restore();
+}
+
+function drawInvaders(time) {
+  for (const invader of state.invaders) {
+    const bob = Math.sin(time * 5 + invader.wobble) * 2;
+    const x = invader.x;
+    const y = invader.y + bob;
+
+    ctx.save();
+    ctx.shadowBlur = 16;
+    ctx.shadowColor = "#8dff6a";
+    ctx.fillStyle = "#8dff6a";
+    ctx.fillRect(x + 6, y, invader.width - 12, 6);
+    ctx.fillRect(x, y + 6, invader.width, 12);
+    ctx.fillRect(x + 5, y + 18, 8, 6);
+    ctx.fillRect(x + invader.width - 13, y + 18, 8, 6);
+    ctx.fillStyle = "#06120f";
+    ctx.fillRect(x + 9, y + 9, 5, 5);
+    ctx.fillRect(x + invader.width - 14, y + 9, 5, 5);
+    ctx.restore();
   }
-  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
 }
 
-function hestonMonteCarlo({ spot, strike, rate, dividend, time, optionType, params, paths, steps }) {
-  const dt = time / Math.max(steps, 1);
-  const sqrtDt = Math.sqrt(dt);
-  const kappa = Math.max(params.kappa, 1e-8);
-  const theta = Math.max(params.theta, 1e-8);
-  const xi = Math.max(params.xi, 1e-8);
-  const rho = Math.min(Math.max(params.rho, -0.999), 0.999);
-  let payoffSum = 0;
+function drawBullets() {
+  ctx.save();
+  ctx.shadowBlur = 12;
+  for (const bullet of state.bullets) {
+    ctx.shadowColor = "#ffd166";
+    ctx.fillStyle = "#ffd166";
+    ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+  }
+  for (const bullet of state.enemyBullets) {
+    ctx.shadowColor = "#ff5cc8";
+    ctx.fillStyle = "#ff5cc8";
+    ctx.fillRect(bullet.x, bullet.y, bullet.width, bullet.height);
+  }
+  ctx.restore();
+}
 
-  for (let p = 0; p < paths; p += 1) {
-    let s = spot;
-    let v = Math.max(params.v0, 1e-8);
+function drawGroundLine() {
+  ctx.save();
+  ctx.strokeStyle = "rgba(93, 242, 255, 0.45)";
+  ctx.setLineDash([10, 9]);
+  ctx.beginPath();
+  ctx.moveTo(20, HEIGHT - 24);
+  ctx.lineTo(WIDTH - 20, HEIGHT - 24);
+  ctx.stroke();
+  ctx.restore();
+}
 
-    for (let step = 0; step < steps; step += 1) {
-      const z1 = sampleStandardNormal();
-      const z2 = sampleStandardNormal();
-      const w1 = z1;
-      const w2 = rho * z1 + Math.sqrt(1 - rho * rho) * z2;
-      const vPositive = Math.max(v, 0);
-      const varianceDrift = kappa * (theta - vPositive) * dt;
-      const varianceShock = xi * Math.sqrt(vPositive) * sqrtDt * w2;
-      v = Math.max(v + varianceDrift + varianceShock, 1e-8);
+function overlaps(a, b) {
+  return a.x < b.x + b.width
+    && a.x + a.width > b.x
+    && a.y < b.y + b.height
+    && a.y + a.height > b.y;
+}
 
-      const drift = (rate - dividend - 0.5 * vPositive) * dt;
-      const shock = Math.sqrt(vPositive) * sqrtDt * w1;
-      s *= Math.exp(drift + shock);
-    }
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
 
-    const payoff =
-      optionType === "call" ? Math.max(s - strike, 0) : Math.max(strike - s, 0);
-    payoffSum += payoff;
+function updateHud() {
+  scoreEl.textContent = String(state.score);
+  levelEl.textContent = String(state.level);
+  livesEl.textContent = String(state.lives);
+}
+
+function showOverlay(kicker, title, text) {
+  overlayKicker.textContent = kicker;
+  overlayTitle.textContent = title;
+  overlayText.textContent = text;
+  overlay.classList.remove("hidden");
+}
+
+function hideOverlay() {
+  overlay.classList.add("hidden");
+}
+
+window.addEventListener("keydown", (event) => {
+  if (["ArrowLeft", "ArrowRight", "Space"].includes(event.code)) {
+    event.preventDefault();
   }
 
-  return Math.exp(-rate * time) * (payoffSum / paths);
-}
+  if (event.code === "Space" && (!state.running || state.gameOver)) {
+    startGame();
+    return;
+  }
 
-function createMetricCard(label, value, detail) {
-  return `
-    <article class="metric-card">
-      <h3>${label}</h3>
-      <strong>${value}</strong>
-      <small>${detail}</small>
-    </article>
-  `;
-}
+  if (event.code === "KeyP") {
+    togglePause();
+    return;
+  }
 
-function formatMoney(value, currency) {
-  return new Intl.NumberFormat("ja-JP", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
+  keys.add(event.code);
+});
 
-function formatNumber(value, digits = 4) {
-  return Number(value).toFixed(digits);
-}
+window.addEventListener("keyup", (event) => {
+  keys.delete(event.code);
+});
 
-async function evaluateTrade() {
-  try {
-    setStatus("Parsing trade description...", "idle");
-    refs.metrics.innerHTML = "";
+startButton.addEventListener("click", startGame);
+pauseButton.addEventListener("click", togglePause);
+resetButton.addEventListener("click", resetGame);
 
-    const trade = parseNaturalLanguageTrade(refs.tradeInput.value);
-    const model = refs.modelSelect.value;
-    const currency = refs.currencySelect.value;
-    const apiKey = refs.apiKeyInput.value.trim();
-    const lookbackDays = Math.max(20, safeNumber(refs.lookbackInput.value, 90));
-    const multiplier = Math.max(1, safeNumber(refs.multiplierInput.value, CONTRACT_SIZE_DEFAULT));
-    const usdJpy = Math.max(0.01, safeNumber(refs.usdJpyInput.value, 150));
-    const mcPaths = Math.max(500, Math.floor(safeNumber(refs.mcPathsInput.value, 4000)));
-    const mcSteps = Math.max(10, Math.floor(safeNumber(refs.mcStepsInput.value, 90)));
+document.querySelectorAll("[data-touch]").forEach((button) => {
+  const action = button.dataset.touch;
+  const code = action === "left" ? "ArrowLeft" : action === "right" ? "ArrowRight" : "Space";
 
-    const market = {
-      spot: safeNumber(refs.spotInput.value, NaN),
-      rate: safeNumber(refs.rateInput.value, 0.045),
-      dividend: safeNumber(refs.dividendInput.value, 0),
-      vol: safeNumber(refs.volInput.value, 0.25),
-      source: "manual",
-      latestTradingDay: null,
-    };
-
-    let closeSeries = [];
-    if (apiKey) {
-      setStatus("Fetching latest spot and historical data...", "idle");
-      const live = await fetchAlphaVantageData(trade.symbol, apiKey, lookbackDays);
-      if (Number.isFinite(live.spot)) {
-        market.spot = live.spot;
+  const press = (event) => {
+    event.preventDefault();
+    button.classList.add("active");
+    if (action === "shoot") {
+      if (!state.running) {
+        startGame();
       }
-      if (live.dividendYield !== null) {
-        market.dividend = live.dividendYield;
-      }
-      closeSeries = live.closeSeries;
-      market.source = "alpha_vantage";
-      market.latestTradingDay = live.latestTradingDay;
-    }
-
-    if (!Number.isFinite(market.spot) || market.spot <= 0) {
-      throw new Error("Spot is missing. Enter it manually or provide an API key.");
-    }
-
-    if ((!Number.isFinite(trade.strike) || trade.strike <= 0) && trade.strikeExpression) {
-      const evaluatedStrike = evaluateFormulaExpression(trade.strikeExpression, {
-        Spot: market.spot,
-        S: market.spot,
-        spot: market.spot,
-        s: market.spot,
-      });
-      if (!Number.isFinite(evaluatedStrike) || evaluatedStrike <= 0) {
-        throw new Error(`Could not evaluate strike formula: ${trade.strikeExpression}`);
-      }
-      trade.strike = evaluatedStrike;
-    }
-
-    if (trade.quantityExpression) {
-      const evaluatedQuantity = evaluateFormulaExpression(trade.quantityExpression, {
-        Spot: market.spot,
-        S: market.spot,
-        spot: market.spot,
-        s: market.spot,
-      });
-      if (Number.isFinite(evaluatedQuantity) && evaluatedQuantity > 0) {
-        trade.quantity = evaluatedQuantity;
-      }
-    }
-
-    if (!Number.isFinite(trade.strike) || trade.strike <= 0) {
-      throw new Error("Strike is missing. Enter K=<number> or a formula such as K=Spot*1.1.");
-    }
-
-    const histVol = realizedVolatility(closeSeries);
-    if (histVol) {
-      market.vol = histVol;
-    }
-
-    const time = yearFraction(trade.expiry);
-    const signedQuantity = trade.quantity * trade.side;
-    let unitPrice;
-    let greeks = null;
-    let modelVol = market.vol;
-
-    if (model === "sabr") {
-      const beta = safeNumber(refs.sabrBetaInput.value, 0.7);
-      const nu = safeNumber(refs.sabrNuInput.value, 0.5);
-      const rho = safeNumber(refs.sabrRhoInput.value, -0.25);
-      const forward = market.spot * Math.exp((market.rate - market.dividend) * time);
-      const alpha = market.vol * Math.pow(Math.max(forward, 1e-6), 1 - beta);
-      modelVol = sabrImpliedVol({
-        forward,
-        strike: trade.strike,
-        time,
-        alpha,
-        beta,
-        rho,
-        nu,
-      });
-      greeks = blackScholes({
-        spot: market.spot,
-        strike: trade.strike,
-        rate: market.rate,
-        dividend: market.dividend,
-        vol: modelVol,
-        time,
-        optionType: trade.optionType,
-      });
-      unitPrice = greeks.price;
+      shoot();
     } else {
-      const params = {
-        v0: safeNumber(refs.hestonV0Input.value, 0.0625),
-        theta: safeNumber(refs.hestonThetaInput.value, 0.0625),
-        kappa: safeNumber(refs.hestonKappaInput.value, 1.8),
-        xi: safeNumber(refs.hestonXiInput.value, 0.55),
-        rho: safeNumber(refs.hestonRhoInput.value, -0.65),
-      };
-      unitPrice = hestonMonteCarlo({
-        spot: market.spot,
-        strike: trade.strike,
-        rate: market.rate,
-        dividend: market.dividend,
-        time,
-        optionType: trade.optionType,
-        params,
-        paths: mcPaths,
-        steps: mcSteps,
-      });
-      modelVol = Math.sqrt(Math.max((params.v0 + params.theta) / 2, 1e-8));
-      greeks = blackScholes({
-        spot: market.spot,
-        strike: trade.strike,
-        rate: market.rate,
-        dividend: market.dividend,
-        vol: modelVol,
-        time,
-        optionType: trade.optionType,
-      });
+      keys.add(code);
     }
+  };
 
-    const fxRate = currency === "JPY" ? usdJpy : 1;
-    const unitPriceDisplay = unitPrice * multiplier * fxRate;
-    const positionValue = unitPrice * signedQuantity * multiplier * fxRate;
+  const release = () => {
+    button.classList.remove("active");
+    keys.delete(code);
+  };
 
-    refs.metrics.innerHTML = [
-      createMetricCard("Unit Premium", formatMoney(unitPriceDisplay, currency), `Premium for ${multiplier} underlying shares`),
-      createMetricCard("Position MTM", formatMoney(positionValue, currency), `${trade.quantity} contracts x ${trade.side > 0 ? "Long" : "Short"}`),
-      createMetricCard("Model Vol", formatNumber(modelVol * 100, 2) + "%", `Effective volatility used by ${model.toUpperCase()}`),
-      createMetricCard("Delta", formatNumber(greeks.delta * signedQuantity * multiplier, 2), "Position delta"),
-      createMetricCard("Gamma", formatNumber(greeks.gamma * signedQuantity * multiplier, 6), "Position gamma"),
-      createMetricCard("Vega", formatNumber((greeks.vega / 100) * signedQuantity * multiplier, 4), "Per 1 vol point"),
-    ].join("");
+  button.addEventListener("pointerdown", press);
+  button.addEventListener("pointerup", release);
+  button.addEventListener("pointercancel", release);
+  button.addEventListener("pointerleave", release);
+});
 
-    refs.parsedTrade.textContent = JSON.stringify(
-      {
-        ...trade,
-        model,
-        timeToExpiryYears: Number(formatNumber(time, 6)),
-      },
-      null,
-      2
-    );
-
-    refs.marketSnapshot.textContent = JSON.stringify(
-      {
-        source: market.source,
-        latestTradingDay: market.latestTradingDay,
-        spot: market.spot,
-        rate: market.rate,
-        dividend: market.dividend,
-        inputVol: safeNumber(refs.volInput.value, 0.25),
-        realizedVol: histVol,
-        effectiveVol: modelVol,
-        fxRateApplied: fxRate,
-        lookbackDays,
-        mcPaths: model === "heston" ? mcPaths : null,
-        mcSteps: model === "heston" ? mcSteps : null,
-      },
-      null,
-      2
-    );
-
-    setStatus("Pricing completed. Manual inputs were used unless live data was available through the API key.", "success");
-  } catch (error) {
-    if (error.code === "PARSE_INCOMPLETE" && error.details) {
-      refs.metrics.innerHTML = [
-        createMetricCard(
-          "Parse Status",
-          "Incomplete",
-          `Missing ${error.details.missing.length} required field(s)`
-        ),
-      ].join("");
-
-      refs.parsedTrade.textContent = JSON.stringify(
-        {
-          extracted: error.details.extracted,
-          missing: error.details.missing,
-          guidance: error.details.missing.map((field) => `Please add ${field} to the trade description.`),
-        },
-        null,
-        2
-      );
-
-      refs.marketSnapshot.textContent = JSON.stringify(
-        {
-          parseExample: "Buy 10 AAPL 2026-12-18 220 call",
-          supportedFields: ["ticker", "call/put", "strike", "expiry", "quantity", "side"],
-          note: "Pricing starts only after ticker, call/put, strike, and expiry are all available.",
-        },
-        null,
-        2
-      );
-    }
-    setStatus(error.message || "An error occurred while pricing the trade.", "error");
-  }
-}
-
-refs.priceButton.addEventListener("click", evaluateTrade);
-window.addEventListener("load", evaluateTrade);
+resetGame();
