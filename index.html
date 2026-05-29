@@ -3,74 +3,138 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ミニ・インベーダー</title>
+    <title>Bloomberg風 CVA プライサー</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Press+Start+2P&display=swap"
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;700;900&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="stars" aria-hidden="true"></div>
-    <main class="game-shell">
-      <section class="hero-card" aria-labelledby="gameTitle">
-        <p class="eyebrow">Retro Browser Game</p>
-        <h1 id="gameTitle">ミニ・インベーダー</h1>
-        <p class="hero-copy">
-          迫りくるインベーダーを撃ち落とす、ブラウザだけで遊べるシンプルなシューティングゲームです。
-        </p>
-      </section>
-
-      <section class="game-card" aria-label="インベーダーゲーム">
-        <div class="hud" aria-live="polite">
-          <div>
-            <span>スコア</span>
-            <strong id="score">0</strong>
-          </div>
-          <div>
-            <span>レベル</span>
-            <strong id="level">1</strong>
-          </div>
-          <div>
-            <span>ライフ</span>
-            <strong id="lives">3</strong>
-          </div>
+    <main class="terminal-shell" aria-labelledby="appTitle">
+      <header class="top-bar">
+        <div>
+          <p class="kicker">EQD &lt;CVA&gt; IRS XVA MONTE CARLO</p>
+          <h1 id="appTitle">シンプル CVA プライサー</h1>
         </div>
+        <div class="market-clock" aria-label="画面情報">
+          <span>USD IRS</span>
+          <strong>LIVE CALC</strong>
+        </div>
+      </header>
 
-        <div class="canvas-wrap">
-          <canvas id="gameCanvas" width="720" height="520" aria-label="ゲーム画面"></canvas>
-          <div id="overlay" class="overlay">
-            <div>
-              <p id="overlayKicker">Ready?</p>
-              <h2 id="overlayTitle">侵略を止めよう</h2>
-              <p id="overlayText">スタートを押すか、スペースキーでゲーム開始。</p>
+      <section class="workspace">
+        <form id="pricingForm" class="ticket panel" aria-label="CVA入力フォーム">
+          <div class="panel-title">
+            <span>TRADE TICKET</span>
+            <small>Hull-White 1F / Monte Carlo</small>
+          </div>
+
+          <label>
+            <span>元本 (USD)</span>
+            <input id="notional" name="notional" type="number" min="1000000" step="1000000" value="100000000" required />
+          </label>
+
+          <label>
+            <span>満期</span>
+            <select id="maturity" name="maturity">
+              <option value="1">1Y</option>
+              <option value="3">3Y</option>
+              <option value="5" selected>5Y</option>
+              <option value="7">7Y</option>
+              <option value="10">10Y</option>
+              <option value="15">15Y</option>
+              <option value="20">20Y</option>
+            </select>
+          </label>
+
+          <label>
+            <span>サイド</span>
+            <select id="side" name="side">
+              <option value="payer" selected>固定支払 / 変動受取</option>
+              <option value="receiver">固定受取 / 変動支払</option>
+            </select>
+          </label>
+
+          <div class="grid-two">
+            <label>
+              <span>現在の金利レベル (Flat YC)</span>
+              <input id="flatRate" name="flatRate" type="number" min="-0.02" max="0.2" step="0.0001" value="0.0320" />
+            </label>
+            <label>
+              <span>固定クーポン</span>
+              <input id="fixedRate" name="fixedRate" type="number" min="0" max="0.2" step="0.0001" value="0.034" />
+            </label>
+          </div>
+
+          <label>
+            <span>回復率</span>
+            <input id="recoveryRate" name="recoveryRate" type="number" min="0" max="0.9" step="0.01" value="0.40" />
+          </label>
+
+          <div class="grid-two">
+            <label>
+              <span>HW平均回帰</span>
+              <input id="meanReversion" name="meanReversion" type="number" min="0.001" max="1" step="0.001" value="0.030" />
+            </label>
+            <label>
+              <span>HWボラ</span>
+              <input id="volatility" name="volatility" type="number" min="0.001" max="0.1" step="0.001" value="0.010" />
+            </label>
+          </div>
+
+          <div class="grid-two">
+            <label>
+              <span>クレジット・スプレッド</span>
+              <input id="creditSpread" name="creditSpread" type="number" min="0.0001" max="0.2" step="0.0001" value="0.0120" />
+            </label>
+            <label>
+              <span>パス数</span>
+              <select id="paths" name="paths">
+                <option value="500">500</option>
+                <option value="1000" selected>1,000</option>
+                <option value="2500">2,500</option>
+                <option value="5000">5,000</option>
+              </select>
+            </label>
+          </div>
+
+          <button class="primary-action" type="submit">PRICE CVA</button>
+        </form>
+
+        <section class="results panel" aria-live="polite">
+          <div class="panel-title">
+            <span>VALUATION</span>
+            <small id="valuationTime">--</small>
+          </div>
+
+          <div class="price-tile">
+            <span>CVA PRICE</span>
+            <output id="cvaPrice" data-testid="cva-price">--</output>
+            <button id="copyButton" type="button">COPY</button>
+          </div>
+
+          <div class="metrics-grid">
+            <div><span>EE AVG</span><strong id="avgEe">--</strong></div>
+            <div><span>EE PEAK</span><strong id="peakEe">--</strong></div>
+            <div><span>SWAP NPV</span><strong id="swapNpv">--</strong></div>
+            <div><span>FLAT YC</span><strong id="curveLevel">--</strong></div>
+            <div><span>95% PFE</span><strong id="pfe95">--</strong></div>
+          </div>
+
+          <div class="chart-card">
+            <div class="chart-head">
+              <span>EXPECTED EXPOSURE PROFILE</span>
+              <small id="calibrationLabel">Calibrated to flat curve</small>
             </div>
+            <canvas id="exposureChart" width="900" height="260" aria-label="期待エクスポージャーのチャート"></canvas>
           </div>
-        </div>
 
-        <div class="controls">
-          <button id="startButton" type="button">スタート</button>
-          <button id="pauseButton" type="button">一時停止</button>
-          <button id="resetButton" type="button">リセット</button>
-        </div>
-
-        <div class="touch-controls" aria-label="タッチ操作">
-          <button data-touch="left" type="button" aria-label="左へ移動">←</button>
-          <button data-touch="shoot" type="button" aria-label="ショット">●</button>
-          <button data-touch="right" type="button" aria-label="右へ移動">→</button>
-        </div>
+          <pre id="copyText" class="blotter" aria-label="コピー用評価サマリー">CVA price will appear here after pricing.</pre>
+        </section>
       </section>
-
-      <aside class="how-to-play" aria-labelledby="howToPlayTitle">
-        <h2 id="howToPlayTitle">遊び方</h2>
-        <ul>
-          <li><kbd>←</kbd> <kbd>→</kbd> または <kbd>A</kbd> <kbd>D</kbd> で移動。</li>
-          <li><kbd>Space</kbd> でショット。インベーダーを全滅させるとレベルアップ。</li>
-          <li>敵の弾や着地を避けながら、できるだけ高得点を狙いましょう。</li>
-        </ul>
-      </aside>
     </main>
 
     <script src="./app.js"></script>
