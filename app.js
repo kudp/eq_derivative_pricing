@@ -1,265 +1,154 @@
-const form = document.querySelector("#pricingForm");
-const valuationDate = document.querySelector("#valuationDate");
-const cvaAmount = document.querySelector("#cvaAmount");
-const cvaBps = document.querySelector("#cvaBps");
-const swapNpv = document.querySelector("#swapNpv");
-const peakExposure = document.querySelector("#peakExposure");
-const exposureTable = document.querySelector("#exposureTable");
-const chart = document.querySelector("#exposureChart");
-const ctx = chart.getContext("2d");
-
 const STEPS_PER_YEAR = 12;
-const PAYMENT_FREQUENCY = 1;
 const EXPOSURES_PER_YEAR = 4;
-const RNG_SEED = 20260529;
+const SEED = 271828;
 
-valuationDate.textContent = new Intl.DateTimeFormat("ja-JP", {
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-}).format(new Date());
+const $ = (selector) => document.querySelector(selector);
+const form = $("#pricingForm");
 
-function readInputs() {
+function toRate(percent) {
+  return Number(percent) / 100;
+}
+
+function readTrade() {
   const data = new FormData(form);
   return {
     notional: Number(data.get("notional")),
     maturity: Number(data.get("maturity")),
     side: data.get("side"),
-    fixedRate: Number(data.get("fixedRate")) / 100,
-    recoveryRate: Number(data.get("recoveryRate")) / 100,
-    initialRate: Number(data.get("initialRate")) / 100,
-    theta: Number(data.get("theta")) / 100,
+    fixedRate: toRate(data.get("fixedRate")),
+    recoveryRate: toRate(data.get("recoveryRate")),
+    r0: toRate(data.get("initialRate")),
+    theta: toRate(data.get("theta")),
     meanReversion: Number(data.get("meanReversion")),
-    volatility: Number(data.get("volatility")) / 100,
+    sigma: toRate(data.get("volatility")),
     creditSpread: Number(data.get("creditSpread")) / 10000,
     paths: Number(data.get("paths")),
   };
 }
 
-function createSeededRandom(seed) {
+function seededRandom(seed) {
   let state = seed >>> 0;
   return () => {
     state = (1664525 * state + 1013904223) >>> 0;
-    return state / 4294967296;
+    return state / 2 ** 32;
   };
 }
 
-function normalRandom(random) {
-  let u = 0;
-  let v = 0;
-  while (u === 0) u = random();
-  while (v === 0) v = random();
-  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+function standardNormal(random) {
+  const u1 = Math.max(random(), Number.EPSILON);
+  const u2 = Math.max(random(), Number.EPSILON);
+  return Math.sqrt(-2 * Math.log(u1)) * Math.cos(2 * Math.PI * u2);
 }
 
 function discount(rate, time) {
-  return Math.exp(-rate * Math.max(time, 0));
+  return Math.exp(-rate * time);
 }
 
-function annuity(rate, timeToMaturity) {
-  let value = 0;
-  for (let t = PAYMENT_FREQUENCY; t <= timeToMaturity + 1e-9; t += PAYMENT_FREQUENCY) {
-    value += PAYMENT_FREQUENCY * discount(rate, t);
-  }
-  return value;
+function swapAnnuity(rate, maturity) {
+  if (maturity <= 0) return 0;
+  if (Math.abs(rate) < 1e-8) return maturity;
+  return (1 - discount(rate, maturity)) / rate;
 }
 
-function swapValue(params, shortRate, timeToMaturity) {
-  if (timeToMaturity <= 0) {
-    return 0;
-  }
-
-  const fixedLeg = params.fixedRate * annuity(shortRate, timeToMaturity);
-  const floatingLeg = 1 - discount(shortRate, timeToMaturity);
-  const payerFixedValue = params.notional * (floatingLeg - fixedLeg);
-
-  return params.side === "payFixed" ? payerFixedValue : -payerFixedValue;
+function swapValue(trade, shortRate, remainingMaturity) {
+  if (remainingMaturity <= 0) return 0;
+  const annuity = swapAnnuity(shortRate, remainingMaturity);
+  const parRate = (1 - discount(shortRate, remainingMaturity)) / annuity;
+  const payerValue = trade.notional * (parRate - trade.fixedRate) * annuity;
+  return trade.side === "payFixed" ? payerValue : -payerValue;
 }
 
-function calculateInitialNpv(params) {
-  return swapValue(params, params.initialRate, params.maturity);
-}
-
-function calculateCva(params) {
-  const exposureDates = Array.from(
-    { length: params.maturity * EXPOSURES_PER_YEAR },
-    (_, index) => (index + 1) / EXPOSURES_PER_YEAR,
-  );
-  const exposureSums = new Array(exposureDates.length).fill(0);
-  const random = createSeededRandom(RNG_SEED + params.paths + Math.round(params.notional / 1000000));
+function calculateCva(trade) {
+  const exposureCount = trade.maturity * EXPOSURES_PER_YEAR;
+  const exposureSums = Array(exposureCount).fill(0);
+  const random = seededRandom(SEED + trade.paths + Math.round(trade.notional / 1_000_000));
   const dt = 1 / STEPS_PER_YEAR;
-  const totalSteps = params.maturity * STEPS_PER_YEAR;
+  const sampleEvery = STEPS_PER_YEAR / EXPOSURES_PER_YEAR;
+  const totalSteps = trade.maturity * STEPS_PER_YEAR;
 
-  for (let path = 0; path < params.paths; path += 1) {
-    let shortRate = params.initialRate;
+  for (let path = 0; path < trade.paths; path += 1) {
+    let shortRate = trade.r0;
 
     for (let step = 1; step <= totalSteps; step += 1) {
-      const drift = params.meanReversion * (params.theta - shortRate) * dt;
-      const diffusion = params.volatility * Math.sqrt(dt) * normalRandom(random);
-      shortRate = Math.max(-0.02, shortRate + drift + diffusion);
+      shortRate +=
+        trade.meanReversion * (trade.theta - shortRate) * dt +
+        trade.sigma * Math.sqrt(dt) * standardNormal(random);
+      shortRate = Math.max(shortRate, -0.02);
 
-      if (step % (STEPS_PER_YEAR / EXPOSURES_PER_YEAR) === 0) {
+      if (step % sampleEvery === 0) {
         const time = step / STEPS_PER_YEAR;
-        const exposureIndex = Math.round(time * EXPOSURES_PER_YEAR) - 1;
-        const remaining = params.maturity - time;
-        const exposure = Math.max(swapValue(params, shortRate, remaining), 0);
-        exposureSums[exposureIndex] += exposure;
+        const index = Math.round(time * EXPOSURES_PER_YEAR) - 1;
+        const mtm = swapValue(trade, shortRate, trade.maturity - time);
+        exposureSums[index] += Math.max(mtm, 0);
       }
     }
   }
 
-  const hazardRate = params.creditSpread / Math.max(1 - params.recoveryRate, 0.0001);
+  const lgd = 1 - trade.recoveryRate;
+  const hazardRate = trade.creditSpread / Math.max(lgd, 0.0001);
   let previousSurvival = 1;
   let cva = 0;
 
-  const profile = exposureDates.map((time, index) => {
-    const expectedExposure = exposureSums[index] / params.paths;
+  const rows = exposureSums.map((sum, index) => {
+    const time = (index + 1) / EXPOSURES_PER_YEAR;
+    const ee = sum / trade.paths;
     const survival = Math.exp(-hazardRate * time);
-    const marginalDefaultProbability = Math.max(previousSurvival - survival, 0);
+    const marginalPd = previousSurvival - survival;
     previousSurvival = survival;
-    const df = discount(params.initialRate, time);
-    const contribution = (1 - params.recoveryRate) * df * expectedExposure * marginalDefaultProbability;
+    const contribution = lgd * discount(trade.r0, time) * ee * marginalPd;
     cva += contribution;
-
-    return {
-      time,
-      expectedExposure,
-      discountFactor: df,
-      marginalDefaultProbability,
-      contribution,
-    };
+    return { time, ee, marginalPd, contribution };
   });
 
   return {
     cva,
-    cvaBps: (cva / params.notional) * 10000,
-    npv: calculateInitialNpv(params),
-    profile,
+    cvaBp: (cva / trade.notional) * 10000,
+    swapNpv: swapValue(trade, trade.r0, trade.maturity),
+    rows,
   };
 }
 
-function formatTenor(time) {
-  return Number.isInteger(time) ? `${time}Y` : `${(time * 12).toFixed(0)}M`;
-}
-
-function formatMoney(value) {
-  const absValue = Math.abs(value);
+function yen(value) {
   const sign = value < 0 ? "-" : "";
-
-  if (absValue >= 1000000000) {
-    return `${sign}¥${(absValue / 1000000000).toFixed(2)}bn`;
-  }
-  if (absValue >= 1000000) {
-    return `${sign}¥${(absValue / 1000000).toFixed(2)}mm`;
-  }
-  return `${sign}¥${Math.round(absValue).toLocaleString("ja-JP")}`;
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000_000) return `${sign}¥${(abs / 1_000_000_000).toFixed(2)}bn`;
+  if (abs >= 1_000_000) return `${sign}¥${(abs / 1_000_000).toFixed(2)}mm`;
+  return `${sign}¥${Math.round(abs).toLocaleString("ja-JP")}`;
 }
 
-function formatPercent(value) {
-  return `${(value * 100).toFixed(3)}%`;
+function tenor(time) {
+  return Number.isInteger(time) ? `${time}Y` : `${Math.round(time * 12)}M`;
 }
 
-function renderSummary(results) {
-  cvaAmount.textContent = formatMoney(results.cva);
-  cvaBps.textContent = `${results.cvaBps.toFixed(2)} bp`;
-  swapNpv.textContent = formatMoney(results.npv);
-  swapNpv.classList.toggle("negative", results.npv < 0);
+function render(result) {
+  $("#cvaPrice").textContent = yen(result.cva);
+  $("#cvaBp").textContent = `${result.cvaBp.toFixed(2)} bp`;
+  $("#swapNpv").textContent = yen(result.swapNpv);
+  $("#swapNpv").classList.toggle("negative", result.swapNpv < 0);
 
-  const maxExposure = Math.max(...results.profile.map((row) => row.expectedExposure), 0);
-  peakExposure.textContent = `Peak EE: ${formatMoney(maxExposure)}`;
-}
-
-function renderTable(profile) {
-  exposureTable.innerHTML = profile
+  const peak = Math.max(...result.rows.map((row) => row.ee), 0);
+  $("#peakEe").textContent = `Peak EE: ${yen(peak)}`;
+  $("#eeChart").innerHTML = result.rows
+    .map((row) => `<div class="bar" style="height:${peak ? (row.ee / peak) * 100 : 0}%" title="${tenor(row.time)} ${yen(row.ee)}"></div>`)
+    .join("");
+  $("#resultRows").innerHTML = result.rows
     .map(
-      (row) => `
-        <tr>
-          <td>${formatTenor(row.time)}</td>
-          <td>${formatMoney(row.expectedExposure)}</td>
-          <td>${row.discountFactor.toFixed(4)}</td>
-          <td>${formatPercent(row.marginalDefaultProbability)}</td>
-          <td>${formatMoney(row.contribution)}</td>
-        </tr>
-      `,
+      (row) => `<tr><td>${tenor(row.time)}</td><td>${yen(row.ee)}</td><td>${(row.marginalPd * 100).toFixed(3)}%</td><td>${yen(row.contribution)}</td></tr>`,
     )
     .join("");
 }
 
-function resizeCanvas() {
-  const ratio = window.devicePixelRatio || 1;
-  const rect = chart.getBoundingClientRect();
-  chart.width = Math.floor(rect.width * ratio);
-  chart.height = Math.floor(rect.height * ratio);
-  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-}
-
-function drawChart(profile) {
-  resizeCanvas();
-  const { width, height } = chart.getBoundingClientRect();
-  const padding = { top: 24, right: 24, bottom: 38, left: 76 };
-  const plotWidth = width - padding.left - padding.right;
-  const plotHeight = height - padding.top - padding.bottom;
-  const maxExposure = Math.max(...profile.map((row) => row.expectedExposure), 1);
-
-  ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = "#050604";
-  ctx.fillRect(0, 0, width, height);
-
-  ctx.strokeStyle = "rgba(255, 158, 24, 0.18)";
-  ctx.lineWidth = 1;
-  ctx.font = "12px Roboto Mono";
-  ctx.fillStyle = "#9f9a82";
-
-  for (let i = 0; i <= 4; i += 1) {
-    const y = padding.top + (plotHeight / 4) * i;
-    const level = maxExposure * (1 - i / 4);
-    ctx.beginPath();
-    ctx.moveTo(padding.left, y);
-    ctx.lineTo(width - padding.right, y);
-    ctx.stroke();
-    ctx.fillText(formatMoney(level), 10, y + 4);
-  }
-
-  const barGap = 10;
-  const barWidth = Math.max(14, (plotWidth - barGap * (profile.length - 1)) / profile.length);
-
-  profile.forEach((row, index) => {
-    const x = padding.left + index * (barWidth + barGap);
-    const barHeight = (row.expectedExposure / maxExposure) * plotHeight;
-    const y = padding.top + plotHeight - barHeight;
-
-    const gradient = ctx.createLinearGradient(0, y, 0, padding.top + plotHeight);
-    gradient.addColorStop(0, "#64ff57");
-    gradient.addColorStop(1, "rgba(100, 255, 87, 0.18)");
-    ctx.fillStyle = gradient;
-    ctx.fillRect(x, y, barWidth, barHeight);
-
-    ctx.fillStyle = "#ff9e18";
-    ctx.fillText(formatTenor(row.time), x + barWidth / 2 - 14, height - 14);
-  });
-
-  ctx.strokeStyle = "#ff9e18";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(padding.left, padding.top);
-  ctx.lineTo(padding.left, padding.top + plotHeight);
-  ctx.lineTo(width - padding.right, padding.top + plotHeight);
-  ctx.stroke();
-}
-
-function runPricing() {
-  const params = readInputs();
-  const results = calculateCva(params);
-  renderSummary(results);
-  renderTable(results.profile);
-  drawChart(results.profile);
+function price() {
+  const trade = readTrade();
+  const result = calculateCva(trade);
+  render(result);
+  return result;
 }
 
 form.addEventListener("submit", (event) => {
   event.preventDefault();
-  runPricing();
+  price();
 });
 
-window.addEventListener("resize", runPricing);
-
-runPricing();
+window.CvaPricer = { calculateCva, price, swapValue };
+price();
