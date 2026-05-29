@@ -7,6 +7,7 @@
   --green: #8cff32;
   --green-soft: rgba(140, 255, 50, 0.16);
   --red: #ff4d3d;
+  --red-soft: rgba(255, 77, 61, 0.16);
   --text: #f5f5df;
   --muted: #9cae8f;
   --line: rgba(255, 176, 0, 0.32);
@@ -23,297 +24,257 @@ body {
     linear-gradient(90deg, rgba(255, 176, 0, 0.035) 1px, transparent 1px),
     radial-gradient(circle at top left, rgba(140, 255, 50, 0.12), transparent 34rem),
     var(--bg);
-  background-size: 22px 22px, 22px 22px, auto, auto;
+  background-size: 32px 32px, 32px 32px, auto, auto;
   color: var(--text);
   font-family: "Noto Sans JP", system-ui, sans-serif;
 }
 
-body::before {
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  content: "";
-  background: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 3px,
-    rgba(255, 255, 255, 0.025) 4px
-  );
-  mix-blend-mode: screen;
-}
-
 button,
-input,
-select,
-output,
-pre,
-strong,
-small,
-.kicker,
-.market-clock,
-.panel-title {
-  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-}
+a { font: inherit; }
 
 .terminal-shell {
-  width: min(1280px, calc(100% - 2rem));
+  width: min(1440px, calc(100vw - 32px));
   margin: 0 auto;
-  padding: 1.2rem 0 2rem;
+  padding: 28px 0 36px;
 }
 
 .top-bar {
   display: flex;
-  align-items: end;
+  align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 24px;
+  padding: 18px 22px;
   border: 1px solid var(--line);
-  border-radius: 4px;
-  background: linear-gradient(135deg, rgba(255, 176, 0, 0.1), rgba(10, 20, 13, 0.92));
+  background: rgba(5, 8, 5, 0.84);
   box-shadow: var(--shadow);
-  padding: 1rem 1.2rem;
 }
 
 .kicker {
-  margin: 0 0 0.35rem;
-  color: var(--green);
-  font-size: 0.85rem;
-  letter-spacing: 0.08em;
+  margin: 0 0 4px;
+  color: var(--amber);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.82rem;
+  letter-spacing: 0.18em;
 }
 
 h1 {
   margin: 0;
-  color: var(--amber);
-  font-size: clamp(1.6rem, 5vw, 3.2rem);
-  line-height: 1.05;
-  text-transform: uppercase;
-  text-shadow: 0 0 20px rgba(255, 176, 0, 0.38);
+  font-size: clamp(1.8rem, 4vw, 3.4rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
 }
 
 .market-clock {
-  display: grid;
-  gap: 0.25rem;
-  min-width: 150px;
-  border-left: 1px solid var(--line);
-  padding-left: 1rem;
-  color: var(--muted);
+  min-width: 168px;
+  padding: 12px 14px;
+  border: 1px solid rgba(140, 255, 50, 0.36);
+  background: var(--green-soft);
   text-align: right;
+  font-family: "IBM Plex Mono", monospace;
 }
 
-.market-clock strong { color: var(--green); }
+.market-clock span,
+.market-clock strong { display: block; }
+.market-clock span { color: var(--muted); font-size: 0.76rem; }
+.market-clock strong { color: var(--green); font-size: 1.15rem; }
 
 .workspace {
   display: grid;
-  grid-template-columns: minmax(300px, 390px) minmax(0, 1fr);
-  gap: 1rem;
-  margin-top: 1rem;
+  grid-template-columns: minmax(0, 1.35fr) minmax(390px, 0.65fr);
+  gap: 18px;
+  margin-top: 18px;
 }
 
 .panel {
   border: 1px solid var(--line);
-  border-radius: 4px;
-  background: rgba(5, 10, 6, 0.92);
+  background: linear-gradient(180deg, rgba(16, 27, 16, 0.95), rgba(5, 12, 7, 0.96));
   box-shadow: var(--shadow);
 }
 
 .panel-title {
   display: flex;
+  align-items: center;
   justify-content: space-between;
-  gap: 1rem;
+  gap: 16px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--line);
-  background: var(--amber);
-  padding: 0.55rem 0.7rem;
-  color: #1c1300;
-  font-weight: 700;
-}
-
-.panel-title small {
-  color: rgba(28, 19, 0, 0.8);
-  font-weight: 600;
-}
-
-.ticket {
-  display: grid;
-  align-content: start;
-  gap: 0.8rem;
-  padding-bottom: 0.9rem;
-}
-
-.ticket label,
-.grid-two {
-  margin: 0 0.75rem;
-}
-
-.ticket label {
-  display: grid;
-  gap: 0.35rem;
-  color: var(--muted);
-  font-size: 0.85rem;
-  font-weight: 700;
-}
-
-.grid-two {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.7rem;
-}
-
-.grid-two label { margin: 0; }
-
-input,
-select {
-  width: 100%;
-  min-height: 42px;
-  border: 1px solid rgba(140, 255, 50, 0.38);
-  border-radius: 2px;
-  background: #07120c;
-  color: var(--green);
-  font-size: 1rem;
-  font-weight: 700;
-  outline: none;
-  padding: 0.55rem 0.65rem;
-}
-
-input:focus,
-select:focus {
-  border-color: var(--amber);
-  box-shadow: 0 0 0 3px rgba(255, 176, 0, 0.16);
-}
-
-.primary-action,
-#copyButton {
-  border: 1px solid #ffd46d;
-  border-radius: 2px;
-  background: linear-gradient(180deg, #ffc13d, #ff9c00);
-  color: #130d00;
-  cursor: pointer;
-  font-weight: 900;
-  letter-spacing: 0.04em;
-}
-
-.primary-action {
-  min-height: 48px;
-  margin: 0.2rem 0.75rem 0;
-  font-size: 1rem;
-}
-
-.primary-action:hover,
-#copyButton:hover { filter: brightness(1.08); }
-
-.results {
-  display: grid;
-  gap: 1rem;
-  padding-bottom: 1rem;
-}
-
-.price-tile {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 0.5rem 1rem;
-  margin: 0 1rem;
-  border: 1px solid rgba(140, 255, 50, 0.36);
-  background: linear-gradient(135deg, rgba(140, 255, 50, 0.14), rgba(255, 176, 0, 0.06));
-  padding: 1rem;
-}
-
-.price-tile span {
-  grid-column: 1 / -1;
-  color: var(--muted);
-  font-weight: 900;
-  letter-spacing: 0.08em;
-}
-
-#cvaPrice {
-  color: var(--green);
-  font-size: clamp(2.2rem, 7vw, 5.5rem);
-  font-weight: 700;
-  line-height: 1;
-  text-shadow: 0 0 28px rgba(140, 255, 50, 0.35);
-}
-
-#copyButton {
-  align-self: end;
-  min-width: 94px;
-  min-height: 42px;
-}
-
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.7rem;
-  margin: 0 1rem;
-}
-
-.metrics-grid div {
-  border: 1px solid rgba(255, 176, 0, 0.28);
-  background: var(--panel-2);
-  padding: 0.8rem;
-}
-
-.metrics-grid span {
-  display: block;
-  margin-bottom: 0.3rem;
-  color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 900;
-}
-
-.metrics-grid strong {
-  color: var(--amber);
-  font-size: clamp(0.9rem, 2vw, 1.1rem);
-}
-
-.chart-card,
-.blotter {
-  margin: 0 1rem;
-  border: 1px solid rgba(255, 176, 0, 0.28);
-  background: #07120c;
-}
-
-.chart-head {
-  display: flex;
-  justify-content: space-between;
-  padding: 0.55rem 0.7rem;
   color: var(--amber);
   font-family: "IBM Plex Mono", monospace;
   font-weight: 700;
+  letter-spacing: 0.08em;
 }
 
-canvas {
-  display: block;
+.panel-title small {
+  color: var(--muted);
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.quote-strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  border-bottom: 1px solid rgba(255, 176, 0, 0.18);
+}
+
+.quote-strip div {
+  padding: 14px 16px;
+  border-right: 1px solid rgba(255, 176, 0, 0.18);
+  background: rgba(255, 176, 0, 0.045);
+}
+
+.quote-strip div:last-child { border-right: 0; }
+.quote-strip span,
+.quote-strip strong { display: block; }
+.quote-strip span {
+  color: var(--muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+}
+.quote-strip strong { margin-top: 4px; color: var(--text); }
+
+.chart-frame {
+  height: min(68vh, 720px);
+  min-height: 520px;
+  padding: 10px;
+}
+
+.chart-frame iframe {
   width: 100%;
-  height: auto;
+  height: 100%;
+  border: 0;
+  background: #07120c;
 }
 
-.blotter {
-  min-height: 132px;
-  overflow: auto;
-  padding: 0.8rem;
+.disclaimer {
+  margin: 0;
+  padding: 0 16px 16px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.news-panel { min-height: 760px; }
+.news-title-row { align-items: flex-start; }
+.news-title-row > div { display: grid; gap: 4px; }
+
+.secondary-action {
+  border: 1px solid rgba(140, 255, 50, 0.52);
+  background: rgba(140, 255, 50, 0.1);
   color: var(--green);
-  font-size: 0.9rem;
-  line-height: 1.55;
-  white-space: pre-wrap;
+  cursor: pointer;
+  font-family: "IBM Plex Mono", monospace;
+  font-weight: 700;
+  padding: 8px 10px;
 }
 
-@media (max-width: 860px) {
+.secondary-action:hover { background: rgba(140, 255, 50, 0.2); }
+
+.impact-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 176, 0, 0.18);
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 999px;
+}
+.dot.up { background: var(--green); }
+.dot.down { background: var(--red); }
+
+.news-list {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: news;
+}
+
+.news-item {
+  counter-increment: news;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) 76px;
+  align-items: center;
+  gap: 10px;
+  min-height: 58px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 176, 0, 0.12);
+  background: rgba(8, 16, 9, 0.74);
+}
+
+.news-item::before {
+  content: counter(news, decimal-leading-zero);
+  color: var(--amber);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.88rem;
+}
+
+.news-item a {
+  display: block;
+  overflow: hidden;
+  color: var(--text);
+  text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.news-item a:hover { color: var(--amber); text-decoration: underline; }
+
+.news-meta {
+  display: block;
+  overflow: hidden;
+  margin-top: 3px;
+  color: var(--muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.72rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.impact-badge {
+  justify-self: end;
+  min-width: 68px;
+  border: 1px solid currentColor;
+  padding: 5px 8px;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.impact-badge.up {
+  background: var(--green-soft);
+  color: var(--green);
+}
+
+.impact-badge.down {
+  background: var(--red-soft);
+  color: var(--red);
+}
+
+@media (max-width: 980px) {
+  .terminal-shell { width: min(100% - 20px, 760px); padding-top: 10px; }
   .top-bar,
   .workspace { grid-template-columns: 1fr; }
-
   .top-bar { display: grid; }
-
-  .market-clock {
-    border-left: 0;
-    border-top: 1px solid var(--line);
-    padding: 0.7rem 0 0;
-    text-align: left;
-  }
-
-  .metrics-grid { grid-template-columns: 1fr 1fr; }
+  .market-clock { text-align: left; }
+  .quote-strip { grid-template-columns: 1fr; }
+  .quote-strip div { border-right: 0; border-bottom: 1px solid rgba(255, 176, 0, 0.18); }
+  .chart-frame { min-height: 420px; height: 58vh; }
+  .news-panel { min-height: auto; }
 }
 
 @media (max-width: 560px) {
-  .grid-two,
-  .metrics-grid,
-  .price-tile { grid-template-columns: 1fr; }
-
-  #copyButton { width: 100%; }
+  .panel-title { display: grid; }
+  .news-item { grid-template-columns: 34px minmax(0, 1fr); }
+  .impact-badge { grid-column: 2; justify-self: start; }
 }

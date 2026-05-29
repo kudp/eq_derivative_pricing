@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bloomberg風 CVA プライサー</title>
+    <title>USD/JPY FX ニュースダッシュボード</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -16,117 +16,63 @@
     <main class="terminal-shell" aria-labelledby="appTitle">
       <header class="top-bar">
         <div>
-          <p class="kicker">EQD &lt;CVA&gt; IRS XVA MONTE CARLO</p>
-          <h1 id="appTitle">シンプル CVA プライサー</h1>
+          <p class="kicker">FX &lt;USDJPY&gt; CHART / GOOGLE NEWS / AI IMPACT</p>
+          <h1 id="appTitle">USD/JPY マーケットダッシュボード</h1>
         </div>
         <div class="market-clock" aria-label="画面情報">
-          <span>USD IRS</span>
-          <strong>LIVE CALC</strong>
+          <span id="marketTimestamp">--</span>
+          <strong>LIVE BOARD</strong>
         </div>
       </header>
 
-      <section class="workspace">
-        <form id="pricingForm" class="ticket panel" aria-label="CVA入力フォーム">
+      <section class="workspace" aria-label="USD/JPYチャートとニュース">
+        <section class="chart-panel panel" aria-labelledby="chartTitle">
           <div class="panel-title">
-            <span>TRADE TICKET</span>
-            <small>Hull-White 1F / Monte Carlo</small>
+            <span id="chartTitle">USD/JPY CHART</span>
+            <small>TradingView embedded live chart</small>
           </div>
-
-          <label>
-            <span>元本 (USD)</span>
-            <input id="notional" name="notional" type="number" min="1000000" step="1000000" value="100000000" required />
-          </label>
-
-          <label>
-            <span>満期</span>
-            <select id="maturity" name="maturity">
-              <option value="1">1Y</option>
-              <option value="3">3Y</option>
-              <option value="5" selected>5Y</option>
-              <option value="7">7Y</option>
-              <option value="10">10Y</option>
-              <option value="15">15Y</option>
-              <option value="20">20Y</option>
-            </select>
-          </label>
-
-          <label>
-            <span>サイド</span>
-            <select id="side" name="side">
-              <option value="payer" selected>固定支払 / 変動受取</option>
-              <option value="receiver">固定受取 / 変動支払</option>
-            </select>
-          </label>
-
-          <div class="grid-two">
-            <label>
-              <span>固定クーポン</span>
-              <input id="fixedRate" name="fixedRate" type="number" min="0" max="0.2" step="0.0001" value="0.034" />
-            </label>
-            <label>
-              <span>回復率</span>
-              <input id="recoveryRate" name="recoveryRate" type="number" min="0" max="0.9" step="0.01" value="0.40" />
-            </label>
-          </div>
-
-          <div class="grid-two">
-            <label>
-              <span>HW平均回帰</span>
-              <input id="meanReversion" name="meanReversion" type="number" min="0.001" max="1" step="0.001" value="0.030" />
-            </label>
-            <label>
-              <span>HWボラ</span>
-              <input id="volatility" name="volatility" type="number" min="0.001" max="0.1" step="0.001" value="0.010" />
-            </label>
-          </div>
-
-          <div class="grid-two">
-            <label>
-              <span>クレジット・スプレッド</span>
-              <input id="creditSpread" name="creditSpread" type="number" min="0.0001" max="0.2" step="0.0001" value="0.0120" />
-            </label>
-            <label>
-              <span>パス数</span>
-              <select id="paths" name="paths">
-                <option value="500">500</option>
-                <option value="1000" selected>1,000</option>
-                <option value="2500">2,500</option>
-                <option value="5000">5,000</option>
-              </select>
-            </label>
-          </div>
-
-          <button class="primary-action" type="submit">PRICE CVA</button>
-        </form>
-
-        <section class="results panel" aria-live="polite">
-          <div class="panel-title">
-            <span>VALUATION</span>
-            <small id="valuationTime">--</small>
-          </div>
-
-          <div class="price-tile">
-            <span>CVA PRICE</span>
-            <output id="cvaPrice" data-testid="cva-price">--</output>
-            <button id="copyButton" type="button">COPY</button>
-          </div>
-
-          <div class="metrics-grid">
-            <div><span>EE AVG</span><strong id="avgEe">--</strong></div>
-            <div><span>EE PEAK</span><strong id="peakEe">--</strong></div>
-            <div><span>SWAP NPV</span><strong id="swapNpv">--</strong></div>
-            <div><span>95% PFE</span><strong id="pfe95">--</strong></div>
-          </div>
-
-          <div class="chart-card">
-            <div class="chart-head">
-              <span>EXPECTED EXPOSURE PROFILE</span>
-              <small>Annual grid</small>
+          <div class="quote-strip" aria-label="ドル円参考情報">
+            <div>
+              <span>PAIR</span>
+              <strong>USD/JPY</strong>
             </div>
-            <canvas id="exposureChart" width="900" height="260" aria-label="期待エクスポージャーのチャート"></canvas>
+            <div>
+              <span>TIMEFRAME</span>
+              <strong>1H / FX</strong>
+            </div>
+            <div>
+              <span>FOCUS</span>
+              <strong>米金利・日銀・リスク心理</strong>
+            </div>
+          </div>
+          <div class="chart-frame">
+            <iframe
+              title="USD/JPY TradingViewチャート"
+              src="https://s.tradingview.com/widgetembed/?symbol=FX%3AUSDJPY&interval=60&theme=dark&style=1&timezone=Asia%2FTokyo&withdateranges=1&hide_side_toolbar=0&allow_symbol_change=0&save_image=0&studies=%5B%5D"
+              loading="lazy"
+              referrerpolicy="origin"
+            ></iframe>
+          </div>
+          <p class="disclaimer">
+            チャートはTradingViewの埋め込みウィジェットを利用しています。価格は表示元に依存し、投資判断の保証ではありません。
+          </p>
+        </section>
+
+        <section class="news-panel panel" aria-labelledby="newsTitle">
+          <div class="panel-title news-title-row">
+            <div>
+              <span id="newsTitle">GOOGLE NEWS - ECONOMY</span>
+              <small id="newsStatus">読み込み中...</small>
+            </div>
+            <button id="refreshNews" class="secondary-action" type="button">REFRESH</button>
           </div>
 
-          <pre id="copyText" class="blotter" aria-label="コピー用評価サマリー">CVA price will appear here after pricing.</pre>
+          <div class="impact-legend" aria-label="AI影響判定の凡例">
+            <span><i class="dot up"></i>UP = USD/JPY上昇要因</span>
+            <span><i class="dot down"></i>Down = USD/JPY下落要因</span>
+          </div>
+
+          <ol id="newsList" class="news-list" aria-label="経済ニュース10件"></ol>
         </section>
       </section>
     </main>

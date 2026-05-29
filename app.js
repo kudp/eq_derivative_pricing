@@ -1,219 +1,180 @@
-const YEAR_STEPS = 12;
-const BASE_SHORT_RATE = 0.032;
-const FLOAT_RATE = 0.033;
-const DEFAULT_SEED = 90210;
+const NEWS_LIMIT = 10;
+const GOOGLE_NEWS_RSS = "https://news.google.com/rss/search?q=%E7%B5%8C%E6%B8%88%20USDJPY%20OR%20%E3%83%89%E3%83%AB%E5%86%86%20OR%20%E7%B1%B3%E9%87%91%E5%88%A9%20OR%20%E6%97%A5%E9%8A%80&hl=ja&gl=JP&ceid=JP:ja";
+const RSS_PROXY_URL = `https://api.allorigins.win/raw?url=${encodeURIComponent(GOOGLE_NEWS_RSS)}`;
 
-function createRng(seed = DEFAULT_SEED) {
-  let state = seed >>> 0;
-  return function random() {
-    state = (1664525 * state + 1013904223) >>> 0;
-    return state / 4294967296;
-  };
+const FALLBACK_NEWS = [
+  {
+    title: "米金利上昇観測が強まり、ドル円は底堅い展開",
+    link: "https://news.google.com/search?q=%E7%B1%B3%E9%87%91%E5%88%A9%20%E3%83%89%E3%83%AB%E5%86%86&hl=ja&gl=JP&ceid=JP:ja",
+    source: "Google ニュース検索",
+    published: "--",
+  },
+  {
+    title: "日銀の追加利上げ観測で円買い圧力が意識される",
+    link: "https://news.google.com/search?q=%E6%97%A5%E9%8A%80%20%E8%BF%BD%E5%8A%A0%E5%88%A9%E4%B8%8A%E3%81%92%20%E3%83%89%E3%83%AB%E5%86%86&hl=ja&gl=JP&ceid=JP:ja",
+    source: "Google ニュース検索",
+    published: "--",
+  },
+  {
+    title: "米雇用統計を控え為替市場は様子見、ドル円の変動率に注目",
+    link: "https://news.google.com/search?q=%E7%B1%B3%E9%9B%87%E7%94%A8%E7%B5%B1%E8%A8%88%20%E3%83%89%E3%83%AB%E5%86%86&hl=ja&gl=JP&ceid=JP:ja",
+    source: "Google ニュース検索",
+    published: "--",
+  },
+  {
+    title: "株高でリスク選好が改善し、円売りが入りやすい地合い",
+    link: "https://news.google.com/search?q=%E3%83%AA%E3%82%B9%E3%82%AF%E9%81%B8%E5%A5%BD%20%E5%86%86%E5%A3%B2%E3%82%8A&hl=ja&gl=JP&ceid=JP:ja",
+    source: "Google ニュース検索",
+    published: "--",
+  },
+  {
+    title: "地政学リスクの高まりで安全通貨として円が買われる可能性",
+    link: "https://news.google.com/search?q=%E5%9C%B0%E6%94%BF%E5%AD%A6%E3%83%AA%E3%82%B9%E3%82%AF%20%E5%86%86%E8%B2%B7%E3%81%84&hl=ja&gl=JP&ceid=JP:ja",
+    source: "Google ニュース検索",
+    published: "--",
+  },
+  {
+    title: "米CPIの上振れでFRBの高金利長期化シナリオが再浮上",
+    link: "https://news.google.com/search?q=%E7%B1%B3CPI%20FRB%20%E9%AB%98%E9%87%91%E5%88%A9%20%E3%83%89%E3%83%AB%E5%86%86&hl=ja&gl=JP&ceid=JP:ja",
+    source: "Google ニュース検索",
+    published: "--",
+  },
+  {
+    title: "日本の賃金データ改善で日銀正常化期待が意識される",
+    link: "https://news.google.com/search?q=%E8%B3%83%E9%87%91%20%E6%97%A5%E9%8A%80%20%E6%AD%A3%E5%B8%B8%E5%8C%96%20%E5%86%86&hl=ja&gl=JP&ceid=JP:ja",
+    source: "Google ニュース検索",
+    published: "--",
+  },
+  {
+    title: "原油価格上昇で日本の貿易収支悪化が円の重荷に",
+    link: "https://news.google.com/search?q=%E5%8E%9F%E6%B2%B9%E9%AB%98%20%E8%B2%BF%E6%98%93%E5%8F%8E%E6%94%AF%20%E5%86%86%E5%AE%89&hl=ja&gl=JP&ceid=JP:ja",
+    source: "Google ニュース検索",
+    published: "--",
+  },
+  {
+    title: "米景気減速懸念でFRB利下げ観測が強まりドル売り優勢",
+    link: "https://news.google.com/search?q=%E7%B1%B3%E6%99%AF%E6%B0%97%E6%B8%9B%E9%80%9F%20FRB%20%E5%88%A9%E4%B8%8B%E3%81%92%20%E3%83%89%E3%83%AB%E5%A3%B2%E3%82%8A&hl=ja&gl=JP&ceid=JP:ja",
+    source: "Google ニュース検索",
+    published: "--",
+  },
+  {
+    title: "為替介入への警戒感が高まりドル円の上値を抑える",
+    link: "https://news.google.com/search?q=%E7%82%BA%E6%9B%BF%E4%BB%8B%E5%85%A5%20%E8%AD%A6%E6%88%92%20%E3%83%89%E3%83%AB%E5%86%86&hl=ja&gl=JP&ceid=JP:ja",
+    source: "Google ニュース検索",
+    published: "--",
+  },
+];
+
+const UP_KEYWORDS = [
+  "米金利上昇", "高金利", "利上げ", "タカ派", "インフレ", "CPI", "雇用堅調", "ドル高", "円安", "リスク選好", "株高", "原油高", "貿易赤字",
+];
+const DOWN_KEYWORDS = [
+  "米金利低下", "利下げ", "ハト派", "景気減速", "リセッション", "ドル安", "円高", "円買い", "日銀", "追加利上げ", "為替介入", "リスク回避", "地政学", "安全通貨", "賃金",
+];
+
+function stripHtml(value) {
+  return value.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&quot;/g, '"').trim();
 }
 
-function normalPair(random) {
-  const u1 = Math.max(random(), Number.EPSILON);
-  const u2 = random();
-  const radius = Math.sqrt(-2 * Math.log(u1));
-  const angle = 2 * Math.PI * u2;
-  return [radius * Math.cos(angle), radius * Math.sin(angle)];
+function formatDate(value) {
+  if (!value) return "--";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "--";
+  return new Intl.DateTimeFormat("ja-JP", {
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
 }
 
-function currency(value) {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  }).format(value);
+function analyzeUsdJpyImpact(text) {
+  const upScore = UP_KEYWORDS.reduce((score, keyword) => score + (text.includes(keyword) ? 1 : 0), 0);
+  const downScore = DOWN_KEYWORDS.reduce((score, keyword) => score + (text.includes(keyword) ? 1 : 0), 0);
+  return upScore >= downScore ? "UP" : "Down";
 }
 
-function percent(value) {
-  return `${(value * 100).toFixed(2)}%`;
-}
+function parseGoogleNews(xmlText) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlText, "application/xml");
+  const items = [...doc.querySelectorAll("item")].slice(0, NEWS_LIMIT);
 
-function swapValue({ notional, maturity, fixedRate, side, shortRate }) {
-  const remainingPayments = Math.max(1, Math.round(maturity));
-  let annuity = 0;
-
-  for (let payment = 1; payment <= remainingPayments; payment += 1) {
-    annuity += Math.exp(-shortRate * payment);
-  }
-
-  const fixedLeg = fixedRate * annuity * notional;
-  const floatingLeg = (1 - Math.exp(-shortRate * remainingPayments) + FLOAT_RATE * 0.18 * annuity) * notional;
-  const payerValue = floatingLeg - fixedLeg;
-
-  return side === "payer" ? payerValue : -payerValue;
-}
-
-function percentile(values, p) {
-  if (values.length === 0) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  const index = Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * p));
-  return sorted[index];
-}
-
-function priceCva(input) {
-  const params = {
-    notional: Number(input.notional),
-    maturity: Number(input.maturity),
-    side: input.side,
-    fixedRate: Number(input.fixedRate),
-    recoveryRate: Number(input.recoveryRate),
-    meanReversion: Number(input.meanReversion),
-    volatility: Number(input.volatility),
-    creditSpread: Number(input.creditSpread),
-    paths: Number(input.paths),
-    seed: Number(input.seed ?? DEFAULT_SEED),
-  };
-
-  const dt = 1 / YEAR_STEPS;
-  const totalSteps = Math.round(params.maturity * YEAR_STEPS);
-  const defaultIntensity = params.creditSpread / Math.max(0.01, 1 - params.recoveryRate);
-  const random = createRng(params.seed);
-  const exposureSums = Array(totalSteps + 1).fill(0);
-  const positiveExposureByStep = Array.from({ length: totalSteps + 1 }, () => []);
-  let discountedLoss = 0;
-
-  for (let path = 0; path < params.paths; path += 1) {
-    let shortRate = BASE_SHORT_RATE;
-    let discountFactor = 1;
-
-    for (let step = 1; step <= totalSteps; step += 1) {
-      const [z] = normalPair(random);
-      shortRate += params.meanReversion * (BASE_SHORT_RATE - shortRate) * dt + params.volatility * Math.sqrt(dt) * z;
-      shortRate = Math.max(-0.01, shortRate);
-      discountFactor *= Math.exp(-shortRate * dt);
-
-      const elapsed = step * dt;
-      const remaining = Math.max(dt, params.maturity - elapsed);
-      const mtm = swapValue({
-        notional: params.notional,
-        maturity: remaining,
-        fixedRate: params.fixedRate,
-        side: params.side,
-        shortRate,
-      });
-      const positiveExposure = Math.max(mtm, 0);
-      const defaultProbability = Math.exp(-defaultIntensity * (elapsed - dt)) - Math.exp(-defaultIntensity * elapsed);
-
-      exposureSums[step] += positiveExposure;
-      positiveExposureByStep[step].push(positiveExposure);
-      discountedLoss += (1 - params.recoveryRate) * discountFactor * positiveExposure * defaultProbability;
-    }
-  }
-
-  const expectedExposure = exposureSums.map((sum, step) => ({
-    year: step / YEAR_STEPS,
-    amount: sum / params.paths,
+  return items.map((item) => ({
+    title: stripHtml(item.querySelector("title")?.textContent ?? "No title"),
+    link: item.querySelector("link")?.textContent ?? GOOGLE_NEWS_RSS,
+    source: stripHtml(item.querySelector("source")?.textContent ?? "Google News"),
+    published: item.querySelector("pubDate")?.textContent ?? "",
   }));
-  const annualExposure = expectedExposure.filter((point, index) => index > 0 && index % YEAR_STEPS === 0);
-  const averageEe = expectedExposure.slice(1).reduce((sum, point) => sum + point.amount, 0) / totalSteps;
-  const peakEe = Math.max(...expectedExposure.map((point) => point.amount));
-  const pfe95 = Math.max(...positiveExposureByStep.map((bucket) => percentile(bucket, 0.95)));
-
-  return {
-    cva: discountedLoss / params.paths,
-    averageEe,
-    peakEe,
-    pfe95,
-    swapNpv: swapValue({
-      notional: params.notional,
-      maturity: params.maturity,
-      fixedRate: params.fixedRate,
-      side: params.side,
-      shortRate: BASE_SHORT_RATE,
-    }),
-    annualExposure,
-    params,
-  };
 }
 
-function formInput(form) {
-  const data = new FormData(form);
-  return Object.fromEntries(data.entries());
-}
+function renderNews(newsItems, { fallback = false } = {}) {
+  const list = document.querySelector("#newsList");
+  const status = document.querySelector("#newsStatus");
+  list.innerHTML = "";
 
-function drawChart(canvas, points) {
-  const ctx = canvas.getContext("2d");
-  const width = canvas.width;
-  const height = canvas.height;
-  const padding = 34;
-  const maxAmount = Math.max(...points.map((point) => point.amount), 1);
+  newsItems.slice(0, NEWS_LIMIT).forEach((item) => {
+    const impact = analyzeUsdJpyImpact(`${item.title} ${item.source}`);
+    const li = document.createElement("li");
+    const copy = document.createElement("div");
+    const link = document.createElement("a");
+    const meta = document.createElement("span");
+    const badge = document.createElement("span");
 
-  ctx.clearRect(0, 0, width, height);
-  ctx.fillStyle = "#07120c";
-  ctx.fillRect(0, 0, width, height);
+    li.className = "news-item";
+    copy.className = "news-copy";
+    link.href = item.link;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    link.textContent = item.title;
+    meta.className = "news-meta";
+    meta.textContent = `${item.source} / ${formatDate(item.published)}`;
+    badge.className = `impact-badge ${impact.toLowerCase()}`;
+    badge.textContent = impact;
 
-  ctx.strokeStyle = "rgba(246, 184, 59, 0.22)";
-  ctx.lineWidth = 1;
-  for (let i = 0; i < 5; i += 1) {
-    const y = padding + ((height - padding * 2) * i) / 4;
-    ctx.beginPath();
-    ctx.moveTo(padding, y);
-    ctx.lineTo(width - padding, y);
-    ctx.stroke();
-  }
-
-  ctx.strokeStyle = "#ffb000";
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  points.forEach((point, index) => {
-    const x = padding + ((width - padding * 2) * index) / Math.max(1, points.length - 1);
-    const y = height - padding - (point.amount / maxAmount) * (height - padding * 2);
-    if (index === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
+    copy.append(link, meta);
+    li.append(copy, badge);
+    list.appendChild(li);
   });
-  ctx.stroke();
 
-  ctx.fillStyle = "#8cff32";
-  ctx.font = "22px IBM Plex Mono";
-  ctx.fillText("EE", padding, 28);
+  status.textContent = fallback
+    ? "Googleニュース取得不可のため検索リンクを表示中"
+    : `Googleニュースから${Math.min(newsItems.length, NEWS_LIMIT)}件を表示`;
 }
 
-function renderResult(result) {
-  document.querySelector("#cvaPrice").value = currency(result.cva);
-  document.querySelector("#avgEe").textContent = currency(result.averageEe);
-  document.querySelector("#peakEe").textContent = currency(result.peakEe);
-  document.querySelector("#swapNpv").textContent = currency(result.swapNpv);
-  document.querySelector("#pfe95").textContent = currency(result.pfe95);
-  document.querySelector("#valuationTime").textContent = new Date().toLocaleString("ja-JP");
+async function loadNews() {
+  const status = document.querySelector("#newsStatus");
+  status.textContent = "Googleニュースを取得中...";
 
-  const sideLabel = result.params.side === "payer" ? "固定支払" : "固定受取";
-  const summary = [
-    "IRS CVA PRICING RESULT",
-    `CVA=${currency(result.cva)}`,
-    `Notional=${currency(result.params.notional)}`,
-    `Maturity=${result.params.maturity}Y`,
-    `Side=${sideLabel}`,
-    `Fixed=${percent(result.params.fixedRate)}`,
-    `CreditSpread=${percent(result.params.creditSpread)}`,
-    `HW a=${result.params.meanReversion.toFixed(3)} sigma=${result.params.volatility.toFixed(3)}`,
-    `Paths=${result.params.paths.toLocaleString("en-US")}`,
-  ].join("\n");
-  document.querySelector("#copyText").textContent = summary;
-  drawChart(document.querySelector("#exposureChart"), result.annualExposure);
+  try {
+    const response = await fetch(RSS_PROXY_URL, { cache: "no-store" });
+    if (!response.ok) throw new Error(`RSS fetch failed: ${response.status}`);
+    const xmlText = await response.text();
+    const items = parseGoogleNews(xmlText);
+    if (items.length === 0) throw new Error("RSS feed returned no items");
+    renderNews(items);
+  } catch (error) {
+    console.warn(error);
+    renderNews(FALLBACK_NEWS, { fallback: true });
+  }
+}
+
+function updateTimestamp() {
+  const timestamp = document.querySelector("#marketTimestamp");
+  timestamp.textContent = new Intl.DateTimeFormat("ja-JP", {
+    timeZone: "Asia/Tokyo",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(new Date());
 }
 
 function initApp() {
-  const form = document.querySelector("#pricingForm");
-  const copyButton = document.querySelector("#copyButton");
-
-  function runPricing(event) {
-    event?.preventDefault();
-    const result = priceCva(formInput(form));
-    renderResult(result);
-  }
-
-  form.addEventListener("submit", runPricing);
-  copyButton.addEventListener("click", async () => {
-    const text = document.querySelector("#copyText").textContent;
-    await navigator.clipboard.writeText(text);
-    copyButton.textContent = "COPIED";
-    setTimeout(() => { copyButton.textContent = "COPY"; }, 1200);
-  });
-
-  runPricing();
+  updateTimestamp();
+  setInterval(updateTimestamp, 1000);
+  document.querySelector("#refreshNews").addEventListener("click", loadNews);
+  loadNews();
 }
 
 if (typeof document !== "undefined") {
@@ -221,5 +182,5 @@ if (typeof document !== "undefined") {
 }
 
 if (typeof module !== "undefined") {
-  module.exports = { priceCva, currency, swapValue };
+  module.exports = { analyzeUsdJpyImpact, formatDate, parseGoogleNews, stripHtml };
 }
