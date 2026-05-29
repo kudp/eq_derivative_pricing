@@ -1,213 +1,201 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Option MTM Workbench</title>
+    <title>IRS CVA Pricer | Hull-White Monte Carlo</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Noto+Sans+JP:wght@400;500;700&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;900&family=Roboto+Mono:wght@400;500;700&display=swap"
       rel="stylesheet"
     />
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <div class="page-shell">
-      <header class="hero">
-        <p class="eyebrow">Equity Derivatives</p>
-        <h1>Price Equity Options From Natural Language</h1>
-        <p class="hero-copy">
-          Enter an English trade ticket, including formula-style fields like
-          `K=220`, `T=2026-12-18`, or `qty=10`. The app extracts the key trade
-          terms and marks the position to market with `SABR` or `Heston`.
-        </p>
+    <main class="terminal-shell">
+      <header class="top-bar" aria-label="アプリケーションヘッダー">
+        <div>
+          <p class="terminal-label">EQD &lt;GO&gt;</p>
+          <h1>IRS CVA PRICER</h1>
+          <p class="subtitle">Hull-White 1F Monte Carlo / Simple Unilateral CVA Workbench</p>
+        </div>
+        <div class="market-clock" aria-label="評価日">
+          <span>VALUATION DATE</span>
+          <strong id="valuationDate">--</strong>
+        </div>
       </header>
 
-      <main class="stack">
-        <section class="panel input-panel">
+      <section class="layout-grid">
+        <form id="pricingForm" class="panel input-panel" aria-label="CVA入力フォーム">
           <div class="panel-heading">
-            <h2>Trade Input</h2>
-            <span>Natural Language Ticket</span>
+            <span class="panel-code">SWPM</span>
+            <h2>Swap Terms</h2>
           </div>
 
-          <label class="field">
-            <span>Trade Description</span>
-            <textarea id="tradeInput" rows="6" spellcheck="false">
-Buy qty=10 AAPL call K=220 T=2026-12-18
-            </textarea>
+          <label>
+            <span>元本</span>
+            <div class="field-with-unit">
+              <input id="notional" name="notional" type="number" min="1000000" step="1000000" value="1000000000" />
+              <em>JPY</em>
+            </div>
           </label>
 
-          <div class="field-grid">
-            <div class="field actions">
-              <span>Run Pricing</span>
-              <button id="priceButton" type="button">Parse & Price</button>
-            </div>
-          </div>
+          <label>
+            <span>満期</span>
+            <select id="maturity" name="maturity">
+              <option value="1">1Y</option>
+              <option value="2">2Y</option>
+              <option value="3">3Y</option>
+              <option value="5" selected>5Y</option>
+              <option value="7">7Y</option>
+              <option value="10">10Y</option>
+            </select>
+          </label>
 
-          <p id="statusMessage" class="status idle">Waiting for input.</p>
-        </section>
+          <label>
+            <span>サイド</span>
+            <select id="side" name="side">
+              <option value="payFixed" selected>固定支払 / 変動受取</option>
+              <option value="receiveFixed">固定受取 / 変動支払</option>
+            </select>
+          </label>
 
-        <section class="panel results-panel">
-          <div class="panel-heading">
-            <h2>Results</h2>
-            <span>Marked To Market</span>
-          </div>
-
-          <div class="metrics" id="metrics"></div>
-
-          <div class="split">
-            <div>
-              <h3>Parsed Trade</h3>
-              <pre id="parsedTrade" class="code-block"></pre>
-            </div>
-            <div>
-              <h3>Market Snapshot</h3>
-              <pre id="marketSnapshot" class="code-block"></pre>
-            </div>
-          </div>
-
-          <div>
-            <h3>Notes</h3>
-            <ul class="notes">
-              <li>The app currently targets European vanilla calls and puts.</li>
-              <li>Live data retrieval is enabled only when an Alpha Vantage API key is provided.</li>
-              <li>Since a live options IV surface is not fetched, SABR and Heston parameters are approximate.</li>
-            </ul>
-          </div>
-        </section>
-
-        <section class="panel market-panel">
-          <div class="panel-heading">
-            <h2>Market Data</h2>
-            <span>Compact Inputs</span>
-          </div>
-
-          <div class="market-compact">
-            <label class="field">
-              <span>Alpha Vantage API Key</span>
-              <input id="apiKeyInput" type="password" placeholder="Optional. Leave blank to use manual inputs." />
+          <div class="two-column">
+            <label>
+              <span>固定金利</span>
+              <div class="field-with-unit">
+                <input id="fixedRate" name="fixedRate" type="number" min="0" step="0.01" value="0.80" />
+                <em>%</em>
+              </div>
             </label>
-
-            <div class="compact-grid">
-              <label class="field">
-                <span>Spot</span>
-                <input id="spotInput" type="number" step="0.01" placeholder="212.35" />
-              </label>
-              <label class="field">
-                <span>Rate r</span>
-                <input id="rateInput" type="number" step="0.0001" value="0.0450" />
-              </label>
-              <label class="field">
-                <span>Dividend q</span>
-                <input id="dividendInput" type="number" step="0.0001" value="0.0000" />
-              </label>
-              <label class="field">
-                <span>Base Vol</span>
-                <input id="volInput" type="number" step="0.0001" value="0.2500" />
-              </label>
-              <label class="field">
-                <span>Lookback Days</span>
-                <input id="lookbackInput" type="number" step="1" value="90" />
-              </label>
-              <label class="field">
-                <span>Multiplier</span>
-                <input id="multiplierInput" type="number" step="1" value="100" />
-              </label>
-              <label class="field">
-                <span>USDJPY</span>
-                <input id="usdJpyInput" type="number" step="0.01" value="150.00" />
-              </label>
-              <label class="field">
-                <span>MC Paths</span>
-                <input id="mcPathsInput" type="number" step="100" value="4000" />
-              </label>
-              <label class="field">
-                <span>MC Steps</span>
-                <input id="mcStepsInput" type="number" step="1" value="90" />
-              </label>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel model-panel">
-          <div class="panel-heading">
-            <h2>Model Selection</h2>
-            <span>Pricing Setup</span>
-          </div>
-
-          <div class="field-grid">
-            <label class="field">
-              <span>Model</span>
-              <select id="modelSelect">
-                <option value="sabr">SABR</option>
-                <option value="heston">Heston</option>
-              </select>
+            <label>
+              <span>回収率</span>
+              <div class="field-with-unit">
+                <input id="recoveryRate" name="recoveryRate" type="number" min="0" max="100" step="1" value="40" />
+                <em>%</em>
+              </div>
             </label>
+          </div>
 
-            <label class="field">
-              <span>Reporting Currency</span>
-              <select id="currencySelect">
-                <option value="USD">USD</option>
-                <option value="JPY">JPY</option>
+          <div class="panel-heading compact">
+            <span class="panel-code">HW1F</span>
+            <h2>Model / Credit</h2>
+          </div>
+
+          <div class="two-column">
+            <label>
+              <span>初期短期金利</span>
+              <div class="field-with-unit">
+                <input id="initialRate" name="initialRate" type="number" step="0.01" value="0.50" />
+                <em>%</em>
+              </div>
+            </label>
+            <label>
+              <span>平均回帰水準</span>
+              <div class="field-with-unit">
+                <input id="theta" name="theta" type="number" step="0.01" value="0.70" />
+                <em>%</em>
+              </div>
+            </label>
+          </div>
+
+          <div class="two-column">
+            <label>
+              <span>平均回帰速度 a</span>
+              <input id="meanReversion" name="meanReversion" type="number" min="0.01" step="0.01" value="0.08" />
+            </label>
+            <label>
+              <span>金利ボラ σ</span>
+              <div class="field-with-unit">
+                <input id="volatility" name="volatility" type="number" min="0" step="0.01" value="1.00" />
+                <em>%</em>
+              </div>
+            </label>
+          </div>
+
+          <div class="two-column">
+            <label>
+              <span>信用スプレッド</span>
+              <div class="field-with-unit">
+                <input id="creditSpread" name="creditSpread" type="number" min="0" step="1" value="120" />
+                <em>bp</em>
+              </div>
+            </label>
+            <label>
+              <span>MCパス数</span>
+              <select id="paths" name="paths">
+                <option value="1000">1,000</option>
+                <option value="2500" selected>2,500</option>
+                <option value="5000">5,000</option>
+                <option value="10000">10,000</option>
               </select>
             </label>
           </div>
 
-          <div class="model-params">
-            <div class="params-group">
-              <div class="panel-heading compact">
-                <h3>SABR Parameters</h3>
-                <span>Vol Surface Approximation</span>
-              </div>
-              <div class="compact-grid">
-                <label class="field">
-                  <span>SABR β</span>
-                  <input id="sabrBetaInput" type="number" step="0.01" value="0.70" />
-                </label>
-                <label class="field">
-                  <span>SABR ν</span>
-                  <input id="sabrNuInput" type="number" step="0.01" value="0.50" />
-                </label>
-                <label class="field">
-                  <span>SABR ρ</span>
-                  <input id="sabrRhoInput" type="number" step="0.01" value="-0.25" />
-                </label>
-              </div>
-            </div>
+          <button class="run-button" type="submit">CVAを評価</button>
+        </form>
 
-            <div class="params-group">
-              <div class="panel-heading compact">
-                <h3>Heston Parameters</h3>
-                <span>Stochastic Volatility</span>
-              </div>
-              <div class="compact-grid">
-                <label class="field">
-                  <span>Heston v0</span>
-                  <input id="hestonV0Input" type="number" step="0.0001" value="0.0625" />
-                </label>
-                <label class="field">
-                  <span>Heston θ</span>
-                  <input id="hestonThetaInput" type="number" step="0.0001" value="0.0625" />
-                </label>
-                <label class="field">
-                  <span>Heston κ</span>
-                  <input id="hestonKappaInput" type="number" step="0.01" value="1.80" />
-                </label>
-                <label class="field">
-                  <span>Heston ξ</span>
-                  <input id="hestonXiInput" type="number" step="0.01" value="0.55" />
-                </label>
-                <label class="field">
-                  <span>Heston ρ</span>
-                  <input id="hestonRhoInput" type="number" step="0.01" value="-0.65" />
-                </label>
-              </div>
+        <section class="panel results-panel" aria-live="polite">
+          <div class="panel-heading">
+            <span class="panel-code">CVA</span>
+            <h2>Valuation Summary</h2>
+          </div>
+
+          <div class="ticker-row">
+            <div>
+              <span>CVA</span>
+              <strong id="cvaAmount">--</strong>
+            </div>
+            <div>
+              <span>CVA / Notional</span>
+              <strong id="cvaBps">--</strong>
+            </div>
+            <div>
+              <span>Swap NPV</span>
+              <strong id="swapNpv">--</strong>
             </div>
           </div>
+
+          <div class="chart-panel">
+            <div class="chart-title">
+              <span>EXPECTED EXPOSURE PROFILE</span>
+              <strong id="peakExposure">Peak EE: --</strong>
+            </div>
+            <canvas id="exposureChart" width="920" height="340" aria-label="期待エクスポージャーチャート"></canvas>
+          </div>
+
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tenor</th>
+                  <th>EE</th>
+                  <th>DF</th>
+                  <th>Marginal PD</th>
+                  <th>CVA Contribution</th>
+                </tr>
+              </thead>
+              <tbody id="exposureTable"></tbody>
+            </table>
+          </div>
         </section>
-      </main>
-    </div>
+      </section>
+
+      <section class="panel methodology-panel">
+        <div class="panel-heading">
+          <span class="panel-code">INFO</span>
+          <h2>Methodology</h2>
+        </div>
+        <p>
+          短期金利を Hull-White 1ファクターの平均回帰過程として月次でモンテカルロ生成し、各四半期でスワップの正の時価を平均して EE を算出します。
+          CVA は <code>(1 - Recovery) × Σ DF(t) × EE(t) × ΔPD(t)</code> の単純な片側CVAです。
+        </p>
+        <p class="disclaimer">
+          デモ用途の簡易実装です。カーブ構築、担保、CSA、Wrong Way Risk、ネットティング、カリブレーションは含みません。
+        </p>
+      </section>
+    </main>
 
     <script src="./app.js"></script>
   </body>
