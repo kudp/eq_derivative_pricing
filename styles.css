@@ -47,7 +47,7 @@ input { font: inherit; }
 
 .hero-panel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 260px;
+  grid-template-columns: minmax(0, 1fr) 420px;
   gap: 24px;
   align-items: center;
   padding: 26px;
@@ -77,6 +77,12 @@ h1 {
   color: var(--muted);
   font-size: 1.02rem;
   line-height: 1.8;
+}
+
+.forecast-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
 }
 
 .forecast-input {
@@ -250,7 +256,7 @@ tbody tr { display: table; width: 100%; table-layout: fixed; }
   .hero-panel,
   .workspace { grid-template-columns: 1fr; }
   .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .forecast-input { max-width: 320px; }
+  .forecast-inputs { max-width: 520px; }
 }
 
 @media (max-width: 640px) {
@@ -259,6 +265,7 @@ tbody tr { display: table; width: 100%; table-layout: fixed; }
   .metric-card,
   .panel { border-radius: 18px; }
   .metric-grid { grid-template-columns: 1fr; }
+  .forecast-inputs { grid-template-columns: 1fr; }
   .panel-title { display: grid; }
   .scatter-plot { min-height: 440px; }
 }

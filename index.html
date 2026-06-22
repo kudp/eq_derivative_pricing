@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>気温 × FTSE 相関ダッシュボード</title>
+    <title>気温変化率 × FTSE騰落率 回帰ダッシュボード</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -17,16 +17,23 @@
       <header class="hero-panel">
         <div>
           <p class="kicker">TEMPERATURE / FTSE 100 / LINEAR REGRESSION</p>
-          <h1 id="appTitle">日次の気温とFTSE株価の相関ダッシュボード</h1>
+          <h1 id="appTitle">日次の気温変化率とFTSE騰落率の回帰ダッシュボード</h1>
           <p class="lead">
-            過去の日次平均気温とFTSE 100終値を散布図にし、単回帰モデルで明日の気温から株価水準を推定します。
+            2025年6月のサンプルデータを使い、気温の日次変化率とFTSE 100の日次騰落率の回帰線を作成します。今日の気温と明日の気温予想から、明日のFTSE騰落率を推定します。
           </p>
         </div>
-        <label class="forecast-input">
-          <span>ロンドンの明日の気温</span>
-          <input id="tomorrowTemperature" type="number" min="-10" max="45" step="0.1" aria-label="ロンドンの明日の予想気温" />
-          <strong>℃</strong>
-        </label>
+        <div class="forecast-inputs" aria-label="気温入力">
+          <label class="forecast-input">
+            <span>今日の気温</span>
+            <input id="todayTemperature" type="number" min="-10" max="45" step="0.1" aria-label="今日の気温" />
+            <strong>℃</strong>
+          </label>
+          <label class="forecast-input">
+            <span>明日の気温予想</span>
+            <input id="tomorrowTemperature" type="number" min="-10" max="45" step="0.1" aria-label="明日の予想気温" />
+            <strong>℃</strong>
+          </label>
+        </div>
       </header>
 
       <section id="metricGrid" class="metric-grid" aria-label="相関と回帰のサマリー"></section>
@@ -35,12 +42,12 @@
         <section class="panel plot-panel" aria-labelledby="plotTitle">
           <div class="panel-title">
             <div>
-              <span id="plotTitle">履歴散布図 + 回帰線 + 予想ポイント</span>
-              <small>横軸: ロンドンの日次平均気温 / 縦軸: FTSE 100終値</small>
+              <span id="plotTitle">2025年6月サンプル散布図 + 回帰線 + 予想ポイント</span>
+              <small>横軸: 気温の日次変化率 / 縦軸: FTSE 100日次騰落率</small>
             </div>
             <span class="legend"><i class="history-dot-sample"></i>履歴 <i class="forecast-dot-sample"></i>予想</span>
           </div>
-          <svg id="scatterPlot" class="scatter-plot" role="img" aria-label="気温とFTSE終値の散布図、回帰線、明日の予想ポイント"></svg>
+          <svg id="scatterPlot" class="scatter-plot" role="img" aria-label="気温変化率とFTSE騰落率の散布図、回帰線、明日の予想ポイント"></svg>
           <p id="formulaText" class="formula-text"></p>
         </section>
 
@@ -48,21 +55,23 @@
           <div class="panel-title">
             <div>
               <span id="dataTitle">履歴データ</span>
-              <small>サンプルの日次データ</small>
+              <small>2025年6月のサンプル日次データ</small>
             </div>
           </div>
           <table>
             <thead>
               <tr>
                 <th>日付</th>
-                <th>気温</th>
-                <th>FTSE</th>
+                <th>今日</th>
+                <th>明日</th>
+                <th>気温変化率</th>
+                <th>FTSE騰落率</th>
               </tr>
             </thead>
             <tbody id="dataRows"></tbody>
           </table>
           <p class="disclaimer">
-            このダッシュボードは相関と単回帰の可視化デモです。サンプルデータを使っており、実際の投資判断や価格保証を目的としていません。
+            このダッシュボードは相関と単回帰の可視化デモです。2025年6月のサンプルデータを使っており、実際の投資判断や騰落率保証を目的としていません。
           </p>
         </aside>
       </section>
