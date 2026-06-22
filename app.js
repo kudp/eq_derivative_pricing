@@ -1,72 +1,71 @@
-const HISTORICAL_DATA = [
-  { date: "2026-05-20", temperature: 16.2, ftse: 8706.2 },
-  { date: "2026-05-21", temperature: 15.4, ftse: 8739.3 },
-  { date: "2026-05-22", temperature: 17.1, ftse: 8778.1 },
-  { date: "2026-05-23", temperature: 18.0, ftse: 8796.4 },
-  { date: "2026-05-24", temperature: 18.8, ftse: 8821.8 },
-  { date: "2026-05-25", temperature: 19.6, ftse: 8842.5 },
-  { date: "2026-05-26", temperature: 17.9, ftse: 8809.7 },
-  { date: "2026-05-27", temperature: 20.3, ftse: 8874.9 },
-  { date: "2026-05-28", temperature: 21.2, ftse: 8908.6 },
-  { date: "2026-05-29", temperature: 22.5, ftse: 8956.3 },
-  { date: "2026-05-30", temperature: 23.1, ftse: 8968.7 },
-  { date: "2026-05-31", temperature: 20.9, ftse: 8898.2 },
-  { date: "2026-06-01", temperature: 19.8, ftse: 8862.1 },
-  { date: "2026-06-02", temperature: 18.6, ftse: 8824.5 },
-  { date: "2026-06-03", temperature: 17.4, ftse: 8789.4 },
-  { date: "2026-06-04", temperature: 16.9, ftse: 8761.6 },
-  { date: "2026-06-05", temperature: 18.3, ftse: 8817.2 },
-  { date: "2026-06-06", temperature: 20.1, ftse: 8872.6 },
-  { date: "2026-06-07", temperature: 21.7, ftse: 8916.9 },
-  { date: "2026-06-08", temperature: 22.9, ftse: 8951.5 },
-  { date: "2026-06-09", temperature: 24.0, ftse: 9004.8 },
-  { date: "2026-06-10", temperature: 23.6, ftse: 8988.0 },
-  { date: "2026-06-11", temperature: 22.1, ftse: 8935.1 },
-  { date: "2026-06-12", temperature: 20.7, ftse: 8891.0 },
-  { date: "2026-06-13", temperature: 19.5, ftse: 8850.4 },
-  { date: "2026-06-14", temperature: 18.7, ftse: 8829.8 },
-  { date: "2026-06-15", temperature: 19.9, ftse: 8868.3 },
-  { date: "2026-06-16", temperature: 21.0, ftse: 8910.6 },
-  { date: "2026-06-17", temperature: 22.4, ftse: 8954.9 },
-  { date: "2026-06-18", temperature: 23.3, ftse: 8986.4 },
-  { date: "2026-06-19", temperature: 24.4, ftse: 9027.7 },
-  { date: "2026-06-20", temperature: 25.1, ftse: 9042.5 },
-  { date: "2026-06-21", temperature: 23.8, ftse: 8999.3 },
+const JUNE_2025_SAMPLE_DATA = [
+  { date: "2025-06-02", todayTemperature: 18.4, tomorrowTemperature: 19.1, ftseReturn: 0.34 },
+  { date: "2025-06-03", todayTemperature: 19.1, tomorrowTemperature: 17.8, ftseReturn: -0.52 },
+  { date: "2025-06-04", todayTemperature: 17.8, tomorrowTemperature: 18.6, ftseReturn: 0.21 },
+  { date: "2025-06-05", todayTemperature: 18.6, tomorrowTemperature: 20.4, ftseReturn: 0.63 },
+  { date: "2025-06-06", todayTemperature: 20.4, tomorrowTemperature: 21.0, ftseReturn: 0.29 },
+  { date: "2025-06-09", todayTemperature: 21.2, tomorrowTemperature: 19.9, ftseReturn: -0.41 },
+  { date: "2025-06-10", todayTemperature: 19.9, tomorrowTemperature: 20.7, ftseReturn: 0.18 },
+  { date: "2025-06-11", todayTemperature: 20.7, tomorrowTemperature: 22.3, ftseReturn: 0.57 },
+  { date: "2025-06-12", todayTemperature: 22.3, tomorrowTemperature: 23.8, ftseReturn: 0.66 },
+  { date: "2025-06-13", todayTemperature: 23.8, tomorrowTemperature: 22.6, ftseReturn: -0.27 },
+  { date: "2025-06-16", todayTemperature: 22.1, tomorrowTemperature: 21.5, ftseReturn: -0.09 },
+  { date: "2025-06-17", todayTemperature: 21.5, tomorrowTemperature: 20.2, ftseReturn: -0.44 },
+  { date: "2025-06-18", todayTemperature: 20.2, tomorrowTemperature: 21.1, ftseReturn: 0.24 },
+  { date: "2025-06-19", todayTemperature: 21.1, tomorrowTemperature: 24.0, ftseReturn: 0.98 },
+  { date: "2025-06-20", todayTemperature: 24.0, tomorrowTemperature: 25.2, ftseReturn: 0.51 },
+  { date: "2025-06-23", todayTemperature: 24.6, tomorrowTemperature: 23.1, ftseReturn: -0.38 },
+  { date: "2025-06-24", todayTemperature: 23.1, tomorrowTemperature: 22.0, ftseReturn: -0.31 },
+  { date: "2025-06-25", todayTemperature: 22.0, tomorrowTemperature: 23.4, ftseReturn: 0.49 },
+  { date: "2025-06-26", todayTemperature: 23.4, tomorrowTemperature: 24.7, ftseReturn: 0.46 },
+  { date: "2025-06-27", todayTemperature: 24.7, tomorrowTemperature: 26.1, ftseReturn: 0.72 },
+  { date: "2025-06-30", todayTemperature: 26.1, tomorrowTemperature: 25.0, ftseReturn: -0.35 },
 ];
 
-const DEFAULT_TOMORROW_TEMPERATURE = 37.0;
+const HISTORICAL_DATA = JUNE_2025_SAMPLE_DATA.map((point) => ({
+  ...point,
+  temperatureChangeRate: ((point.tomorrowTemperature - point.todayTemperature) / point.todayTemperature) * 100,
+}));
+
+const DEFAULT_TODAY_TEMPERATURE = 24.0;
+const DEFAULT_TOMORROW_TEMPERATURE = 25.2;
 const DEFAULT_TEMPERATURE_LOCATION = "London";
-const DEFAULT_TEMPERATURE_DATE = "2026-06-23";
+const DEFAULT_FORECAST_DATE = "2026-06-23";
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 function mean(values) {
   return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
+function calculateTemperatureChangeRate(todayTemperature, tomorrowTemperature) {
+  if (todayTemperature === 0) return 0;
+  return ((tomorrowTemperature - todayTemperature) / todayTemperature) * 100;
+}
+
 function calculateRegression(data) {
-  const temperatures = data.map((point) => point.temperature);
-  const prices = data.map((point) => point.ftse);
-  const temperatureMean = mean(temperatures);
-  const priceMean = mean(prices);
+  const temperatureChangeRates = data.map((point) => point.temperatureChangeRate);
+  const ftseReturns = data.map((point) => point.ftseReturn);
+  const xMean = mean(temperatureChangeRates);
+  const yMean = mean(ftseReturns);
   const centered = data.map((point) => ({
-    x: point.temperature - temperatureMean,
-    y: point.ftse - priceMean,
+    x: point.temperatureChangeRate - xMean,
+    y: point.ftseReturn - yMean,
   }));
   const covariance = centered.reduce((sum, point) => sum + point.x * point.y, 0);
   const xVariance = centered.reduce((sum, point) => sum + point.x ** 2, 0);
   const yVariance = centered.reduce((sum, point) => sum + point.y ** 2, 0);
   const slope = covariance / xVariance;
-  const intercept = priceMean - slope * temperatureMean;
+  const intercept = yMean - slope * xMean;
   const correlation = covariance / Math.sqrt(xVariance * yVariance);
   const rSquared = correlation ** 2;
-  const residuals = data.map((point) => point.ftse - (intercept + slope * point.temperature));
+  const residuals = data.map((point) => point.ftseReturn - (intercept + slope * point.temperatureChangeRate));
   const rmse = Math.sqrt(mean(residuals.map((value) => value ** 2)));
 
   return { slope, intercept, correlation, rSquared, rmse };
 }
 
-function predictFtse(regression, temperature) {
-  return regression.intercept + regression.slope * temperature;
+function predictFtseReturn(regression, temperatureChangeRate) {
+  return regression.intercept + regression.slope * temperatureChangeRate;
 }
 
 function createSvgElement(tag, attributes = {}) {
@@ -89,12 +88,17 @@ function formatNumber(value, digits = 1) {
   }).format(value);
 }
 
-function renderMetrics(regression, predictedPrice, tomorrowTemperature) {
+function formatPercent(value, digits = 2) {
+  const sign = value > 0 ? "+" : "";
+  return `${sign}${formatNumber(value, digits)}%`;
+}
+
+function renderMetrics(regression, predictedReturn, temperatureChangeRate, todayTemperature, tomorrowTemperature) {
   const metrics = [
     { label: "相関係数 r", value: regression.correlation.toFixed(3), note: regression.correlation >= 0 ? "正の相関" : "負の相関" },
     { label: "決定係数 R²", value: regression.rSquared.toFixed(3), note: "単回帰の説明力" },
-    { label: "回帰式", value: `FTSE = ${regression.intercept.toFixed(1)} + ${regression.slope.toFixed(1)} × 気温`, note: "気温1℃あたりの指数変化" },
-    { label: "明日の予想", value: `${formatNumber(predictedPrice)} pt`, note: `${DEFAULT_TEMPERATURE_LOCATION} ${DEFAULT_TEMPERATURE_DATE} の${formatNumber(tomorrowTemperature)}℃を使用` },
+    { label: "回帰式", value: `FTSE騰落率 = ${regression.intercept.toFixed(2)} + ${regression.slope.toFixed(2)} × 気温変化率`, note: "気温変化率1%ptあたり" },
+    { label: "予想騰落率", value: formatPercent(predictedReturn), note: `${formatNumber(todayTemperature)}℃ → ${formatNumber(tomorrowTemperature)}℃（${formatPercent(temperatureChangeRate)}）` },
   ];
 
   document.querySelector("#metricGrid").innerHTML = metrics.map((metric) => `
@@ -106,79 +110,84 @@ function renderMetrics(regression, predictedPrice, tomorrowTemperature) {
   `).join("");
 }
 
-function renderScatterPlot(data, regression, tomorrowTemperature) {
+function renderScatterPlot(data, regression, temperatureChangeRate) {
   const svg = document.querySelector("#scatterPlot");
   svg.innerHTML = "";
-  const predictedPrice = predictFtse(regression, tomorrowTemperature);
-  const temperatures = [...data.map((point) => point.temperature), tomorrowTemperature];
-  const prices = [...data.map((point) => point.ftse), predictedPrice];
+  const predictedReturn = predictFtseReturn(regression, temperatureChangeRate);
+  const xValues = [...data.map((point) => point.temperatureChangeRate), temperatureChangeRate];
+  const yValues = [...data.map((point) => point.ftseReturn), predictedReturn];
   const padding = 58;
   const width = 920;
   const height = 560;
-  const minTemp = Math.floor(Math.min(...temperatures) - 1);
-  const maxTemp = Math.ceil(Math.max(...temperatures) + 1);
-  const minPrice = Math.floor((Math.min(...prices) - 80) / 50) * 50;
-  const maxPrice = Math.ceil((Math.max(...prices) + 80) / 50) * 50;
-  const xScale = (value) => padding + ((value - minTemp) / (maxTemp - minTemp)) * (width - padding * 2);
-  const yScale = (value) => height - padding - ((value - minPrice) / (maxPrice - minPrice)) * (height - padding * 2);
+  const minX = Math.floor(Math.min(...xValues) - 1);
+  const maxX = Math.ceil(Math.max(...xValues) + 1);
+  const minY = Math.floor((Math.min(...yValues) - 0.25) * 2) / 2;
+  const maxY = Math.ceil((Math.max(...yValues) + 0.25) * 2) / 2;
+  const xScale = (value) => padding + ((value - minX) / (maxX - minX)) * (width - padding * 2);
+  const yScale = (value) => height - padding - ((value - minY) / (maxY - minY)) * (height - padding * 2);
 
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
   svg.append(createSvgElement("rect", { width, height, rx: 18, class: "plot-bg" }));
 
   for (let i = 0; i <= 5; i += 1) {
-    const temp = minTemp + ((maxTemp - minTemp) / 5) * i;
-    const price = minPrice + ((maxPrice - minPrice) / 5) * i;
-    svg.append(createSvgElement("line", { x1: xScale(temp), x2: xScale(temp), y1: padding, y2: height - padding, class: "grid-line" }));
-    svg.append(createSvgElement("line", { x1: padding, x2: width - padding, y1: yScale(price), y2: yScale(price), class: "grid-line" }));
-    appendSvgText(svg, { x: xScale(temp), y: height - 22, class: "axis-label", "text-anchor": "middle" }, `${formatNumber(temp, 0)}℃`);
-    appendSvgText(svg, { x: 18, y: yScale(price) + 4, class: "axis-label" }, formatNumber(price, 0));
+    const xValue = minX + ((maxX - minX) / 5) * i;
+    const yValue = minY + ((maxY - minY) / 5) * i;
+    svg.append(createSvgElement("line", { x1: xScale(xValue), x2: xScale(xValue), y1: padding, y2: height - padding, class: "grid-line" }));
+    svg.append(createSvgElement("line", { x1: padding, x2: width - padding, y1: yScale(yValue), y2: yScale(yValue), class: "grid-line" }));
+    appendSvgText(svg, { x: xScale(xValue), y: height - 22, class: "axis-label", "text-anchor": "middle" }, formatPercent(xValue, 0));
+    appendSvgText(svg, { x: 18, y: yScale(yValue) + 4, class: "axis-label" }, formatPercent(yValue, 1));
   }
 
-  const lineStart = { temperature: minTemp, ftse: predictFtse(regression, minTemp) };
-  const lineEnd = { temperature: maxTemp, ftse: predictFtse(regression, maxTemp) };
+  const lineStart = { x: minX, y: predictFtseReturn(regression, minX) };
+  const lineEnd = { x: maxX, y: predictFtseReturn(regression, maxX) };
   svg.append(createSvgElement("line", {
-    x1: xScale(lineStart.temperature), y1: yScale(lineStart.ftse),
-    x2: xScale(lineEnd.temperature), y2: yScale(lineEnd.ftse), class: "regression-line",
+    x1: xScale(lineStart.x), y1: yScale(lineStart.y),
+    x2: xScale(lineEnd.x), y2: yScale(lineEnd.y), class: "regression-line",
   }));
 
   data.forEach((point) => {
-    const circle = createSvgElement("circle", { cx: xScale(point.temperature), cy: yScale(point.ftse), r: 6.5, class: "history-dot" });
+    const circle = createSvgElement("circle", { cx: xScale(point.temperatureChangeRate), cy: yScale(point.ftseReturn), r: 6.5, class: "history-dot" });
     const title = createSvgElement("title");
-    title.textContent = `${point.date}: ${point.temperature}℃ / FTSE ${formatNumber(point.ftse)}`;
+    title.textContent = `${point.date}: 気温変化率 ${formatPercent(point.temperatureChangeRate)} / FTSE騰落率 ${formatPercent(point.ftseReturn)}`;
     circle.append(title);
     svg.append(circle);
   });
 
-  svg.append(createSvgElement("circle", { cx: xScale(tomorrowTemperature), cy: yScale(predictedPrice), r: 10, class: "forecast-dot" }));
-  appendSvgText(svg, { x: xScale(tomorrowTemperature) + 14, y: yScale(predictedPrice) - 12, class: "forecast-label" }, "明日の予想");
-  appendSvgText(svg, { x: width / 2, y: height - 6, class: "axis-title", "text-anchor": "middle" }, "日次平均気温（℃）");
-  appendSvgText(svg, { x: 18, y: 28, class: "axis-title" }, "FTSE 100 終値（pt）");
+  svg.append(createSvgElement("circle", { cx: xScale(temperatureChangeRate), cy: yScale(predictedReturn), r: 10, class: "forecast-dot" }));
+  appendSvgText(svg, { x: xScale(temperatureChangeRate) + 14, y: yScale(predictedReturn) - 12, class: "forecast-label" }, "予想騰落率");
+  appendSvgText(svg, { x: width / 2, y: height - 6, class: "axis-title", "text-anchor": "middle" }, "気温の日次変化率（%）");
+  appendSvgText(svg, { x: 18, y: 28, class: "axis-title" }, "FTSE 100 日次騰落率（%）");
 
-  return predictedPrice;
+  return predictedReturn;
 }
 
 function renderTable(data) {
   document.querySelector("#dataRows").innerHTML = data.map((point) => `
     <tr>
       <td>${point.date}</td>
-      <td>${formatNumber(point.temperature)}℃</td>
-      <td>${formatNumber(point.ftse)} pt</td>
+      <td>${formatNumber(point.todayTemperature)}℃</td>
+      <td>${formatNumber(point.tomorrowTemperature)}℃</td>
+      <td>${formatPercent(point.temperatureChangeRate)}</td>
+      <td>${formatPercent(point.ftseReturn)}</td>
     </tr>
   `).join("");
 }
 
 function updateDashboard() {
-  const temperatureInput = document.querySelector("#tomorrowTemperature");
-  const tomorrowTemperature = Number(temperatureInput.value || DEFAULT_TOMORROW_TEMPERATURE);
+  const todayTemperature = Number(document.querySelector("#todayTemperature").value || DEFAULT_TODAY_TEMPERATURE);
+  const tomorrowTemperature = Number(document.querySelector("#tomorrowTemperature").value || DEFAULT_TOMORROW_TEMPERATURE);
+  const temperatureChangeRate = calculateTemperatureChangeRate(todayTemperature, tomorrowTemperature);
   const regression = calculateRegression(HISTORICAL_DATA);
-  const predictedPrice = renderScatterPlot(HISTORICAL_DATA, regression, tomorrowTemperature);
-  renderMetrics(regression, predictedPrice, tomorrowTemperature);
+  const predictedReturn = renderScatterPlot(HISTORICAL_DATA, regression, temperatureChangeRate);
+  renderMetrics(regression, predictedReturn, temperatureChangeRate, todayTemperature, tomorrowTemperature);
   renderTable(HISTORICAL_DATA);
-  document.querySelector("#formulaText").textContent = `${DEFAULT_TEMPERATURE_LOCATION}（${DEFAULT_TEMPERATURE_DATE}）の気温を使ったFTSE予想 = ${regression.intercept.toFixed(1)} + ${regression.slope.toFixed(1)} × ${formatNumber(tomorrowTemperature)} = ${formatNumber(predictedPrice)} pt`;
+  document.querySelector("#formulaText").textContent = `${DEFAULT_TEMPERATURE_LOCATION}（${DEFAULT_FORECAST_DATE}）の気温変化率 ${formatPercent(temperatureChangeRate)} を使ったFTSE騰落率予想 = ${regression.intercept.toFixed(2)} + ${regression.slope.toFixed(2)} × ${formatNumber(temperatureChangeRate, 2)} = ${formatPercent(predictedReturn)}`;
 }
 
 function initApp() {
+  document.querySelector("#todayTemperature").value = DEFAULT_TODAY_TEMPERATURE;
   document.querySelector("#tomorrowTemperature").value = DEFAULT_TOMORROW_TEMPERATURE;
+  document.querySelector("#todayTemperature").addEventListener("input", updateDashboard);
   document.querySelector("#tomorrowTemperature").addEventListener("input", updateDashboard);
   updateDashboard();
 }
@@ -188,5 +197,14 @@ if (typeof document !== "undefined") {
 }
 
 if (typeof module !== "undefined") {
-  module.exports = { HISTORICAL_DATA, calculateRegression, predictFtse, DEFAULT_TOMORROW_TEMPERATURE, DEFAULT_TEMPERATURE_LOCATION, DEFAULT_TEMPERATURE_DATE };
+  module.exports = {
+    HISTORICAL_DATA,
+    calculateRegression,
+    calculateTemperatureChangeRate,
+    predictFtseReturn,
+    DEFAULT_TODAY_TEMPERATURE,
+    DEFAULT_TOMORROW_TEMPERATURE,
+    DEFAULT_TEMPERATURE_LOCATION,
+    DEFAULT_FORECAST_DATE,
+  };
 }
