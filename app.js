@@ -34,7 +34,9 @@ const HISTORICAL_DATA = [
   { date: "2026-06-21", temperature: 23.8, ftse: 8999.3 },
 ];
 
-const DEFAULT_TOMORROW_TEMPERATURE = 22.8;
+const DEFAULT_TOMORROW_TEMPERATURE = 37.0;
+const DEFAULT_TEMPERATURE_LOCATION = "London";
+const DEFAULT_TEMPERATURE_DATE = "2026-06-23";
 const SVG_NS = "http://www.w3.org/2000/svg";
 
 function mean(values) {
@@ -73,6 +75,13 @@ function createSvgElement(tag, attributes = {}) {
   return element;
 }
 
+function appendSvgText(parent, attributes, text) {
+  const element = createSvgElement("text", attributes);
+  element.textContent = text;
+  parent.append(element);
+  return element;
+}
+
 function formatNumber(value, digits = 1) {
   return new Intl.NumberFormat("ja-JP", {
     minimumFractionDigits: digits,
@@ -85,7 +94,7 @@ function renderMetrics(regression, predictedPrice, tomorrowTemperature) {
     { label: "相関係数 r", value: regression.correlation.toFixed(3), note: regression.correlation >= 0 ? "正の相関" : "負の相関" },
     { label: "決定係数 R²", value: regression.rSquared.toFixed(3), note: "単回帰の説明力" },
     { label: "回帰式", value: `FTSE = ${regression.intercept.toFixed(1)} + ${regression.slope.toFixed(1)} × 気温`, note: "気温1℃あたりの指数変化" },
-    { label: "明日の予想", value: `${formatNumber(predictedPrice)} pt`, note: `${formatNumber(tomorrowTemperature)}℃を入力値に使用` },
+    { label: "明日の予想", value: `${formatNumber(predictedPrice)} pt`, note: `${DEFAULT_TEMPERATURE_LOCATION} ${DEFAULT_TEMPERATURE_DATE} の${formatNumber(tomorrowTemperature)}℃を使用` },
   ];
 
   document.querySelector("#metricGrid").innerHTML = metrics.map((metric) => `
@@ -121,8 +130,8 @@ function renderScatterPlot(data, regression, tomorrowTemperature) {
     const price = minPrice + ((maxPrice - minPrice) / 5) * i;
     svg.append(createSvgElement("line", { x1: xScale(temp), x2: xScale(temp), y1: padding, y2: height - padding, class: "grid-line" }));
     svg.append(createSvgElement("line", { x1: padding, x2: width - padding, y1: yScale(price), y2: yScale(price), class: "grid-line" }));
-    svg.append(createSvgElement("text", { x: xScale(temp), y: height - 22, class: "axis-label", "text-anchor": "middle" })).textContent = `${formatNumber(temp, 0)}℃`;
-    svg.append(createSvgElement("text", { x: 18, y: yScale(price) + 4, class: "axis-label" })).textContent = formatNumber(price, 0);
+    appendSvgText(svg, { x: xScale(temp), y: height - 22, class: "axis-label", "text-anchor": "middle" }, `${formatNumber(temp, 0)}℃`);
+    appendSvgText(svg, { x: 18, y: yScale(price) + 4, class: "axis-label" }, formatNumber(price, 0));
   }
 
   const lineStart = { temperature: minTemp, ftse: predictFtse(regression, minTemp) };
@@ -134,14 +143,16 @@ function renderScatterPlot(data, regression, tomorrowTemperature) {
 
   data.forEach((point) => {
     const circle = createSvgElement("circle", { cx: xScale(point.temperature), cy: yScale(point.ftse), r: 6.5, class: "history-dot" });
-    circle.append(createSvgElement("title")).textContent = `${point.date}: ${point.temperature}℃ / FTSE ${formatNumber(point.ftse)}`;
+    const title = createSvgElement("title");
+    title.textContent = `${point.date}: ${point.temperature}℃ / FTSE ${formatNumber(point.ftse)}`;
+    circle.append(title);
     svg.append(circle);
   });
 
   svg.append(createSvgElement("circle", { cx: xScale(tomorrowTemperature), cy: yScale(predictedPrice), r: 10, class: "forecast-dot" }));
-  svg.append(createSvgElement("text", { x: xScale(tomorrowTemperature) + 14, y: yScale(predictedPrice) - 12, class: "forecast-label" })).textContent = "明日の予想";
-  svg.append(createSvgElement("text", { x: width / 2, y: height - 6, class: "axis-title", "text-anchor": "middle" })).textContent = "日次平均気温（℃）";
-  svg.append(createSvgElement("text", { x: 18, y: 28, class: "axis-title" })).textContent = "FTSE 100 終値（pt）";
+  appendSvgText(svg, { x: xScale(tomorrowTemperature) + 14, y: yScale(predictedPrice) - 12, class: "forecast-label" }, "明日の予想");
+  appendSvgText(svg, { x: width / 2, y: height - 6, class: "axis-title", "text-anchor": "middle" }, "日次平均気温（℃）");
+  appendSvgText(svg, { x: 18, y: 28, class: "axis-title" }, "FTSE 100 終値（pt）");
 
   return predictedPrice;
 }
@@ -163,7 +174,7 @@ function updateDashboard() {
   const predictedPrice = renderScatterPlot(HISTORICAL_DATA, regression, tomorrowTemperature);
   renderMetrics(regression, predictedPrice, tomorrowTemperature);
   renderTable(HISTORICAL_DATA);
-  document.querySelector("#formulaText").textContent = `明日のFTSE予想 = ${regression.intercept.toFixed(1)} + ${regression.slope.toFixed(1)} × ${formatNumber(tomorrowTemperature)} = ${formatNumber(predictedPrice)} pt`;
+  document.querySelector("#formulaText").textContent = `${DEFAULT_TEMPERATURE_LOCATION}（${DEFAULT_TEMPERATURE_DATE}）の気温を使ったFTSE予想 = ${regression.intercept.toFixed(1)} + ${regression.slope.toFixed(1)} × ${formatNumber(tomorrowTemperature)} = ${formatNumber(predictedPrice)} pt`;
 }
 
 function initApp() {
@@ -177,5 +188,5 @@ if (typeof document !== "undefined") {
 }
 
 if (typeof module !== "undefined") {
-  module.exports = { HISTORICAL_DATA, calculateRegression, predictFtse, DEFAULT_TOMORROW_TEMPERATURE };
+  module.exports = { HISTORICAL_DATA, calculateRegression, predictFtse, DEFAULT_TOMORROW_TEMPERATURE, DEFAULT_TEMPERATURE_LOCATION, DEFAULT_TEMPERATURE_DATE };
 }
