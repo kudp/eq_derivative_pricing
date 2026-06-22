@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>USD/JPY FX ニュースダッシュボード</title>
+    <title>気温 × FTSE 相関ダッシュボード</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -13,67 +13,58 @@
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
-    <main class="terminal-shell" aria-labelledby="appTitle">
-      <header class="top-bar">
+    <main class="dashboard-shell" aria-labelledby="appTitle">
+      <header class="hero-panel">
         <div>
-          <p class="kicker">FX &lt;USDJPY&gt; CHART / GOOGLE NEWS / AI IMPACT</p>
-          <h1 id="appTitle">USD/JPY マーケットダッシュボード</h1>
+          <p class="kicker">TEMPERATURE / FTSE 100 / LINEAR REGRESSION</p>
+          <h1 id="appTitle">日次の気温とFTSE株価の相関ダッシュボード</h1>
+          <p class="lead">
+            過去の日次平均気温とFTSE 100終値を散布図にし、単回帰モデルで明日の気温から株価水準を推定します。
+          </p>
         </div>
-        <div class="market-clock" aria-label="画面情報">
-          <span id="marketTimestamp">--</span>
-          <strong>LIVE BOARD</strong>
-        </div>
+        <label class="forecast-input">
+          <span>明日の気温</span>
+          <input id="tomorrowTemperature" type="number" min="-10" max="45" step="0.1" aria-label="明日の予想気温" />
+          <strong>℃</strong>
+        </label>
       </header>
 
-      <section class="workspace" aria-label="USD/JPYチャートとニュース">
-        <section class="chart-panel panel" aria-labelledby="chartTitle">
+      <section id="metricGrid" class="metric-grid" aria-label="相関と回帰のサマリー"></section>
+
+      <section class="workspace" aria-label="相関プロットと回帰結果">
+        <section class="panel plot-panel" aria-labelledby="plotTitle">
           <div class="panel-title">
-            <span id="chartTitle">USD/JPY CHART</span>
-            <small>TradingView embedded live chart</small>
-          </div>
-          <div class="quote-strip" aria-label="ドル円参考情報">
             <div>
-              <span>PAIR</span>
-              <strong>USD/JPY</strong>
+              <span id="plotTitle">履歴散布図 + 回帰線 + 予想ポイント</span>
+              <small>横軸: 日次平均気温 / 縦軸: FTSE 100終値</small>
             </div>
+            <span class="legend"><i class="history-dot-sample"></i>履歴 <i class="forecast-dot-sample"></i>予想</span>
+          </div>
+          <svg id="scatterPlot" class="scatter-plot" role="img" aria-label="気温とFTSE終値の散布図、回帰線、明日の予想ポイント"></svg>
+          <p id="formulaText" class="formula-text"></p>
+        </section>
+
+        <aside class="panel data-panel" aria-labelledby="dataTitle">
+          <div class="panel-title">
             <div>
-              <span>TIMEFRAME</span>
-              <strong>1H / FX</strong>
-            </div>
-            <div>
-              <span>FOCUS</span>
-              <strong>米金利・日銀・リスク心理</strong>
+              <span id="dataTitle">履歴データ</span>
+              <small>サンプルの日次データ</small>
             </div>
           </div>
-          <div class="chart-frame">
-            <iframe
-              title="USD/JPY TradingViewチャート"
-              src="https://s.tradingview.com/widgetembed/?symbol=FX%3AUSDJPY&interval=60&theme=dark&style=1&timezone=Asia%2FTokyo&withdateranges=1&hide_side_toolbar=0&allow_symbol_change=0&save_image=0&studies=%5B%5D"
-              loading="lazy"
-              referrerpolicy="origin"
-            ></iframe>
-          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>日付</th>
+                <th>気温</th>
+                <th>FTSE</th>
+              </tr>
+            </thead>
+            <tbody id="dataRows"></tbody>
+          </table>
           <p class="disclaimer">
-            チャートはTradingViewの埋め込みウィジェットを利用しています。価格は表示元に依存し、投資判断の保証ではありません。
+            このダッシュボードは相関と単回帰の可視化デモです。サンプルデータを使っており、実際の投資判断や価格保証を目的としていません。
           </p>
-        </section>
-
-        <section class="news-panel panel" aria-labelledby="newsTitle">
-          <div class="panel-title news-title-row">
-            <div>
-              <span id="newsTitle">GOOGLE NEWS - ECONOMY</span>
-              <small id="newsStatus">読み込み中...</small>
-            </div>
-            <button id="refreshNews" class="secondary-action" type="button">REFRESH</button>
-          </div>
-
-          <div class="impact-legend" aria-label="AI影響判定の凡例">
-            <span><i class="dot up"></i>UP = USD/JPY上昇要因</span>
-            <span><i class="dot down"></i>Down = USD/JPY下落要因</span>
-          </div>
-
-          <ol id="newsList" class="news-list" aria-label="経済ニュース10件"></ol>
-        </section>
+        </aside>
       </section>
     </main>
 
